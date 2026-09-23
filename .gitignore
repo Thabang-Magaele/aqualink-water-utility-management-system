@@ -29,3 +29,6 @@ npm-debug.log*
 !.vscode/extensions.json
 .idea
 *service-account*.json
+
+# Ignore patch files
+*.patch
