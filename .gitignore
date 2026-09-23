@@ -1,0 +1,30 @@
+# Dependencies
+node_modules/
+functions/node_modules/
+
+# Builds
+dist/
+functions/lib/
+
+# Environment - never commit real keys
+.env
+.env.local
+.env.*.local
+
+# Firebase
+.firebase/
+*-debug.log
+firebase-debug.*.log
+ui-debug.log
+# Service account keys must never be committed
+*serviceAccount*.json
+*-firebase-adminsdk-*.json
+
+# Logs & OS / editor files
+logs
+*.log
+npm-debug.log*
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+.idea

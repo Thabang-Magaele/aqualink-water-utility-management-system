@@ -1,0 +1,41 @@
+@import 'tailwindcss';
+
+/*
+ * AquaLink design tokens.
+ * Use these via Tailwind classes, e.g. bg-reservoir, text-ink, border-mist.
+ * Keep every new colour here so the whole app stays consistent.
+ */
+@theme {
+  --font-sans: 'Public Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  --color-ink: #15232b; /* primary text */
+  --color-reservoir: #0b4f6c; /* brand, primary actions */
+  --color-reservoir-deep: #073a50; /* hover / pressed */
+  --color-channel: #1d7a94; /* links, secondary accents */
+  --color-mist: #e8f0f2; /* borders, subtle fills */
+  --color-paper: #f7fafa; /* page background */
+  --color-signal: #c27c00; /* warnings (amber) */
+  --color-fault: #b42318; /* errors */
+  --color-clear: #1e7b4f; /* success */
+}
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+  }
+  body {
+    @apply bg-paper text-ink font-sans;
+  }
+  :focus-visible {
+    @apply outline-channel outline-2 outline-offset-2;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
