@@ -46,11 +46,8 @@ async function main() {
     const keyPath = values.key ?? process.env.GOOGLE_APPLICATION_CREDENTIALS
     const usingEmulator = Boolean(process.env.FIRESTORE_EMULATOR_HOST)
     if (!keyPath && !usingEmulator) fail('Provide --key <service-account.json>, or use --dry-run.')
-    initializeApp(
-      keyPath && !usingEmulator
-        ? { credential: cert(JSON.parse(readFileSync(keyPath, 'utf8'))) }
-        : undefined,
-    )
+    const key = keyPath && !usingEmulator ? JSON.parse(readFileSync(keyPath, 'utf8')) : null
+    initializeApp(key ? { credential: cert(key), projectId: key.project_id } : undefined)
 
     const [customer, technician, admin] = await Promise.all([
       findUser('customer@aqualink.demo'),
