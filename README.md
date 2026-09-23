@@ -2,7 +2,7 @@
 
 AquaLink is a web-based MVP for **Silulumanzi**: a Customer Portal (accounts, bills, usage, leak reports) and a role-based Staff Console (call centre, technicians, billing, assets, water quality, communications), built on React and Firebase.
 
-> Status: **Phase 4: data model.** Typed Firestore collections, composite indexes, and a sample dataset. See [docs/data-model.md](docs/data-model.md).
+> Status: **Phase 5: security rules.** Every collection validates who, what and how it links. See [docs/security.md](docs/security.md).
 
 ## Tech stack
 
@@ -79,7 +79,7 @@ npm --prefix functions run set-role -- admin@aqualink.demo admin --create --name
 
 Without `--create` it changes the role of an existing account. After that, the admin manages roles from **Staff** in the app. Users pick up a role change automatically within a few seconds (or on next sign-in).
 
-**Proving the rules:** `npm run test:rules` runs `tests/rules/access.test.mjs` against the Firestore emulator (needs Java). It checks that technicians can't read billing data, billing can't modify assets, customers can't read other customers' accounts, and admins can reach admin data.
+**Proving the rules:** see [docs/security.md](docs/security.md). `npm run check:rules` runs quick static checks; `npm run test:rules` runs 54 tests against the Firestore emulator (needs Java).
 
 **API note:** calling `/api/setUserRole` in the cloud requires the functions to be deployed, which needs the Blaze plan. Locally, run `firebase emulators:start` and set `VITE_USE_EMULATORS=true`.
 
@@ -124,6 +124,7 @@ Full description, relationship diagram and query/index map: **[docs/data-model.m
 | `npm run format` / `format:check`  | Prettier                                                               |
 | `npm --prefix functions run build` | Compile Cloud Functions to `functions/lib`                             |
 | `npm run seed:sample`              | Build, check and (with `--key`) write the sample dataset               |
+| `npm run check:rules`              | Static checks on `firestore.rules` (no emulator needed)                |
 | `npm run test:rules`               | Run the Firestore security-rules tests in the emulator                 |
 | `firebase emulators:start`         | Run Auth, Firestore, Functions locally (set `VITE_USE_EMULATORS=true`) |
 

@@ -1,24 +1,29 @@
 rules_version = '2';
 
-// -----------------------------------------------------------------------------
-// AquaLink Firestore Security Rules: PHASE 2 (role-based access)
+// =============================================================================
+// AquaLink Firestore Security Rules: PHASE 5
 //
-// Roles come ONLY from the verified ID token's custom claim `role`, which only
-// the server (Cloud Functions / set-role script) can set. A token with no claim
-// is treated as "customer". Anything not matched here is denied.
+// Three layers on every write:
+//   1. WHO   - the role from the verified token claim (never from client data)
+//   2. WHAT  - exact field list, types, allowed values, server timestamps
+//   3. LINKS - cross-document checks (the reading's meter, the ticket's account,
+//              the assigned user is really a technician, ...)
 //
-// Customer ownership: a customer's own records carry `customerId == <their uid>`,
-// and their customers/{id} document uses their uid as its ID.
+// Server-only collections (payments, auditLogs, notifications creation) are
+// written by Cloud Functions / the Admin SDK, which bypass these rules.
+// Anything not matched below is denied. Never add `allow read, write: if true;`
 //
-// Phase 5 tightens these further (field validation, create/update shapes).
-// Never add `allow read, write: if true;`
-// -----------------------------------------------------------------------------
+// Keep the value lists (areas, statuses, types) in sync with src/types/models.ts.
+// =============================================================================
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // -- Helpers --------------------------------------------------------------
+    // ---------------------------------------------------------------- identity
     function signedIn() {
       return request.auth != null;
+    }
+    function uid() {
+      return request.auth.uid;
     }
     function userRole() {
       return request.auth.token.get('role', 'customer');
@@ -36,150 +41,503 @@ service cloud.firestore {
     function isCustomer() {
       return signedIn() && userRole() == 'customer';
     }
-    // Customer reading a document that belongs to them
+
+    // ------------------------------------------------------------ doc helpers
+    function incoming() {
+      return request.resource.data;
+    }
+    function existing() {
+      return resource.data;
+    }
+    // Customer reading a record that carries their uid as customerId
     function ownsRecord() {
-      return isCustomer() && resource.data.customerId == request.auth.uid;
+      return isCustomer() && resource.data.customerId == uid();
+    }
+    function hasExactly(d, fields) {
+      return d.keys().hasAll(fields) && d.keys().hasOnly(fields);
     }
     function onlyChanges(fields) {
-      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(fields);
+      return incoming().diff(existing()).affectedKeys().hasOnly(fields);
     }
-    function validProfileFields(data) {
-      return data.displayName is string
-        && data.displayName.size() > 0
-        && data.displayName.size() <= 100
-        && data.phone is string
-        && data.phone.size() <= 20;
+    function unchanged(fields) {
+      return !incoming().diff(existing()).affectedKeys().hasAny(fields);
+    }
+    // Must be set with serverTimestamp(), so clients can't back-date records
+    function isNow(t) {
+      return t == request.time;
     }
 
-    // -- Users (login profiles) -----------------------------------------------
-    match /users/{uid} {
-      allow read: if (signedIn() && request.auth.uid == uid) || isAdmin();
+    // --------------------------------------------------------- value checks
+    function isText(v, max) {
+      return v is string && v.size() <= max;
+    }
+    function isRequiredText(v, max) {
+      return v is string && v.size() > 0 && v.size() <= max;
+    }
+    function isId(v) {
+      return v is string && v.size() > 0 && v.size() <= 128;
+    }
+    function isOptionalId(v) {
+      return v == null || isId(v);
+    }
+    function isNonNegative(v) {
+      return v is number && v >= 0;
+    }
+    function isOptionalTimestamp(v) {
+      return v == null || v is timestamp;
+    }
+
+    // ------------------------------------------------ allowed values (models.ts)
+    function areas() {
+      return ['Mbombela CBD', 'KaNyamazane', 'Matsulu', 'White River',
+              'Tekwane', 'Msogwaba', 'Kabokweni', 'Hazyview'];
+    }
+    function priorities() {
+      return ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
+    }
+    function ticketStatuses() {
+      return ['OPEN', 'IN_PROGRESS', 'ESCALATED', 'RESOLVED'];
+    }
+    function ticketTypes() {
+      return ['LEAK', 'BURST_PIPE', 'NO_WATER', 'LOW_PRESSURE',
+              'WATER_QUALITY', 'METER_FAULT', 'OTHER'];
+    }
+
+    // =========================================================== USERS
+    match /users/{userId} {
+      function validProfile(d) {
+        return isRequiredText(d.displayName, 100) && isText(d.phone, 20);
+      }
+
+      allow read: if (signedIn() && uid() == userId) || isAdmin();
 
       // Self-registration: own doc only, role can ONLY be "customer".
-      allow create: if signedIn() && request.auth.uid == uid
-        && request.resource.data.keys().hasOnly(
-             ['uid', 'displayName', 'email', 'phone', 'role', 'createdAt', 'updatedAt'])
-        && request.resource.data.uid == uid
-        && request.resource.data.email == request.auth.token.email
-        && request.resource.data.role == 'customer'
-        && request.resource.data.createdAt == request.time
-        && request.resource.data.updatedAt == request.time
-        && validProfileFields(request.resource.data);
+      allow create: if signedIn() && uid() == userId
+        && hasExactly(incoming(), ['uid', 'displayName', 'email', 'phone', 'role', 'createdAt', 'updatedAt'])
+        && incoming().uid == userId
+        && incoming().email == request.auth.token.email
+        && incoming().role == 'customer'
+        && isNow(incoming().createdAt)
+        && isNow(incoming().updatedAt)
+        && validProfile(incoming());
 
       // Name and phone only. Role changes happen server-side (setUserRole).
-      allow update: if signedIn() && request.auth.uid == uid
+      allow update: if signedIn() && uid() == userId
         && onlyChanges(['displayName', 'phone', 'updatedAt'])
-        && request.resource.data.updatedAt == request.time
-        && validProfileFields(request.resource.data);
+        && isNow(incoming().updatedAt)
+        && validProfile(incoming());
 
       allow delete: if false;
     }
 
-    // -- Customers & accounts -------------------------------------------------
+    // =========================================================== CUSTOMERS
     match /customers/{customerId} {
-      allow read: if (isCustomer() && request.auth.uid == customerId)
+      function customerFields() {
+        return ['name', 'email', 'phone', 'address', 'area', 'accountIds', 'createdAt', 'updatedAt'];
+      }
+      function validCustomer(d) {
+        return hasExactly(d, customerFields())
+          && isRequiredText(d.name, 100)
+          && isText(d.email, 254)
+          && isText(d.phone, 20)
+          && isRequiredText(d.address, 200)
+          && d.area in areas()
+          && d.accountIds is list && d.accountIds.size() <= 20;
+      }
+
+      allow read: if (isCustomer() && uid() == customerId)
         || hasRole(['admin', 'call_centre', 'billing']);
-      allow create, update: if hasRole(['admin', 'call_centre']);
+
+      allow create: if hasRole(['admin', 'call_centre'])
+        && validCustomer(incoming())
+        && isNow(incoming().createdAt)
+        && isNow(incoming().updatedAt);
+
+      allow update: if isNow(incoming().updatedAt) && (
+        // Call centre / admin: any detail except creation date
+        (hasRole(['admin', 'call_centre'])
+          && validCustomer(incoming())
+          && unchanged(['createdAt']))
+        // Billing: link new accounts only
+        || (hasRole(['billing'])
+          && onlyChanges(['accountIds', 'updatedAt'])
+          && validCustomer(incoming()))
+        // The customer: their own phone number only
+        || (isCustomer() && uid() == customerId
+          && onlyChanges(['phone', 'updatedAt'])
+          && isText(incoming().phone, 20))
+      );
+
       allow delete: if isAdmin();
     }
 
+    // =========================================================== ACCOUNTS
     match /accounts/{accountId} {
+      function validAccount(d) {
+        return hasExactly(d, ['accountNumber', 'customerId', 'meterId', 'balance', 'status',
+                              'propertyAddress', 'area', 'createdAt', 'updatedAt'])
+          && d.accountNumber is string && d.accountNumber.matches('^[0-9]{10}$')
+          && isId(d.customerId)
+          && isOptionalId(d.meterId)
+          && d.balance is number
+          && d.status in ['ACTIVE', 'SUSPENDED', 'CLOSED']
+          && isRequiredText(d.propertyAddress, 200)
+          && d.area in areas();
+      }
+      // A linked meter must exist and point back at this account (getAfter: works in a batch)
+      function meterLinkOk(d) {
+        return d.meterId == null
+          || getAfter(/databases/$(database)/documents/meters/$(d.meterId)).data.accountId == accountId;
+      }
+
       allow read: if ownsRecord() || hasRole(['admin', 'call_centre', 'billing']);
-      allow write: if hasRole(['admin', 'billing']);
+
+      allow create: if hasRole(['admin', 'billing'])
+        && validAccount(incoming())
+        && exists(/databases/$(database)/documents/customers/$(incoming().customerId))
+        && meterLinkOk(incoming())
+        && isNow(incoming().createdAt)
+        && isNow(incoming().updatedAt);
+
+      allow update: if hasRole(['admin', 'billing'])
+        && validAccount(incoming())
+        && unchanged(['accountNumber', 'customerId', 'createdAt'])
+        && (incoming().meterId == existing().meterId || meterLinkOk(incoming()))
+        && isNow(incoming().updatedAt);
+
+      allow delete: if isAdmin();
     }
 
-    // -- Metering & billing (technicians have NO access) ---------------------
+    // =========================================================== METERS
     match /meters/{meterId} {
+      function validMeter(d) {
+        return hasExactly(d, ['meterNumber', 'accountId', 'customerId', 'installationDate', 'status',
+                              'lastReading', 'lastReadingDate', 'createdAt', 'updatedAt'])
+          && isRequiredText(d.meterNumber, 30)
+          && isId(d.accountId)
+          && isId(d.customerId)
+          && d.installationDate is timestamp
+          && d.status in ['ACTIVE', 'FAULTY', 'REMOVED']
+          && isNonNegative(d.lastReading)
+          && isOptionalTimestamp(d.lastReadingDate);
+      }
+
       allow read: if ownsRecord() || hasRole(['admin', 'call_centre', 'billing']);
-      allow write: if hasRole(['admin', 'billing']);
+
+      // The meter's customer must be the owner of its account
+      allow create: if hasRole(['admin', 'billing'])
+        && validMeter(incoming())
+        && getAfter(/databases/$(database)/documents/accounts/$(incoming().accountId)).data.customerId
+             == incoming().customerId
+        && isNow(incoming().createdAt)
+        && isNow(incoming().updatedAt);
+
+      // Cumulative meter: the stored value never goes down (admin may correct it)
+      allow update: if hasRole(['admin', 'billing'])
+        && validMeter(incoming())
+        && unchanged(['meterNumber', 'accountId', 'customerId', 'createdAt'])
+        && (incoming().lastReading >= existing().lastReading || isAdmin())
+        && isNow(incoming().updatedAt);
+
+      allow delete: if isAdmin();
     }
 
+    // =========================================================== READINGS
     match /readings/{readingId} {
+      function meterOf(d) {
+        return get(/databases/$(database)/documents/meters/$(d.meterId)).data;
+      }
+      function validReading(d) {
+        return hasExactly(d, ['meterId', 'accountId', 'customerId', 'readingValue',
+                              'readingDate', 'recordedBy', 'createdAt'])
+          && isId(d.meterId)
+          && isNonNegative(d.readingValue)
+          && d.readingDate is timestamp
+          && d.readingDate <= request.time
+          && d.recordedBy == uid()
+          && isNow(d.createdAt)
+          // Must match the meter it's recorded against, and can't be below its last value
+          && meterOf(d).accountId == d.accountId
+          && meterOf(d).customerId == d.customerId
+          && d.readingValue >= meterOf(d).lastReading;
+      }
+
       allow read: if ownsRecord() || hasRole(['admin', 'call_centre', 'billing']);
-      allow write: if hasRole(['admin', 'billing']);
+      allow create: if hasRole(['admin', 'billing']) && validReading(incoming());
+      allow update: if false; // readings are a permanent record
+      allow delete: if isAdmin();
     }
 
+    // =========================================================== INVOICES
     match /invoices/{invoiceId} {
+      function validNewInvoice(d) {
+        return hasExactly(d, ['invoiceNumber', 'accountId', 'customerId', 'billingPeriod',
+                              'previousReading', 'currentReading', 'consumption', 'tariffRate',
+                              'amount', 'status', 'dueDate', 'paidAt', 'createdAt'])
+          && isRequiredText(d.invoiceNumber, 40)
+          && d.billingPeriod is string && d.billingPeriod.matches('^[0-9]{4}-(0[1-9]|1[0-2])$')
+          && isNonNegative(d.previousReading)
+          && d.currentReading is number && d.currentReading >= d.previousReading
+          // The arithmetic must add up (small tolerance for decimal rounding)
+          && d.consumption is number
+          && math.abs(d.consumption - (d.currentReading - d.previousReading)) < 0.001
+          && d.tariffRate is number && d.tariffRate > 0
+          && d.amount is number
+          && math.abs(d.amount - d.consumption * d.tariffRate) < 0.01
+          && d.status == 'UNPAID'
+          && d.paidAt == null
+          && d.dueDate is timestamp
+          && isNow(d.createdAt)
+          && get(/databases/$(database)/documents/accounts/$(d.accountId)).data.customerId == d.customerId;
+      }
+
       allow read: if ownsRecord() || hasRole(['admin', 'call_centre', 'billing']);
-      allow write: if hasRole(['admin', 'billing']);
+      allow create: if hasRole(['admin', 'billing']) && validNewInvoice(incoming());
+
+      // Staff may only mark an unpaid invoice overdue. PAID is set by the
+      // payment Cloud Function when money is actually received.
+      allow update: if hasRole(['admin', 'billing'])
+        && onlyChanges(['status'])
+        && existing().status == 'UNPAID'
+        && incoming().status == 'OVERDUE';
+
+      allow delete: if isAdmin();
     }
 
+    // =========================================================== PAYMENTS
     match /payments/{paymentId} {
       allow read: if ownsRecord() || hasRole(['admin', 'billing']);
-      allow write: if false; // created only by the payment Cloud Function
+      allow write: if false; // payment Cloud Function only
     }
 
-    // -- Tickets (leak / outage reports) --------------------------------------
+    // =========================================================== TICKETS
     match /tickets/{ticketId} {
-      function canReadTicket(ticket) {
-        return (isCustomer() && ticket.customerId == request.auth.uid)
+      function canReadTicket(t) {
+        return (isCustomer() && t.customerId == uid())
           || hasRole(['admin', 'call_centre', 'asset_manager'])
-          || (hasRole(['technician']) && ticket.assignedTechnicianId == request.auth.uid);
+          || (hasRole(['technician']) && t.assignedTechnicianId == uid());
+      }
+      function validTicket(d) {
+        return hasExactly(d, ['ticketNumber', 'customerId', 'accountId', 'assetId', 'type',
+                              'description', 'priority', 'status', 'location', 'area',
+                              'customerName', 'assignedTechnicianId', 'assignedTechnicianName',
+                              'createdBy', 'createdAt', 'updatedAt', 'resolvedAt'])
+          && isRequiredText(d.ticketNumber, 40)
+          && isId(d.customerId)
+          && isOptionalId(d.accountId)
+          && isOptionalId(d.assetId)
+          && d.type in ticketTypes()
+          && isRequiredText(d.description, 2000)
+          && d.priority in priorities()
+          && d.status in ticketStatuses()
+          && isRequiredText(d.location, 200)
+          && d.area in areas()
+          && isRequiredText(d.customerName, 100)
+          && isOptionalId(d.assignedTechnicianId)
+          && (d.assignedTechnicianName == null || isRequiredText(d.assignedTechnicianName, 100))
+          && isId(d.createdBy)
+          && d.createdAt is timestamp
+          && d.updatedAt is timestamp
+          && isOptionalTimestamp(d.resolvedAt)
+          // resolvedAt is set exactly when the ticket is resolved
+          && ((d.status == 'RESOLVED') == (d.resolvedAt != null));
+      }
+      // The account (if any) must belong to the ticket's customer
+      function accountBelongs(d) {
+        return d.accountId == null
+          || get(/databases/$(database)/documents/accounts/$(d.accountId)).data.customerId == d.customerId;
+      }
+      // Tickets can only be assigned to users whose (server-set) role is technician
+      function technicianOk(d) {
+        return d.assignedTechnicianId == null
+          || get(/databases/$(database)/documents/users/$(d.assignedTechnicianId)).data.role == 'technician';
+      }
+      function assetOk(d) {
+        return d.assetId == null
+          || exists(/databases/$(database)/documents/assets/$(d.assetId));
       }
 
       allow read: if canReadTicket(resource.data);
 
-      // Customers may report issues for themselves only, always starting OPEN and unassigned.
-      allow create: if hasRole(['admin', 'call_centre'])
-        || (isCustomer()
-            && request.resource.data.customerId == request.auth.uid
-            && request.resource.data.createdBy == request.auth.uid
-            && request.resource.data.status == 'OPEN'
-            && request.resource.data.assignedTechnicianId == null);
+      allow create: if validTicket(incoming())
+        && incoming().status == 'OPEN'
+        && incoming().createdBy == uid()
+        && isNow(incoming().createdAt)
+        && isNow(incoming().updatedAt)
+        && accountBelongs(incoming())
+        && (
+          // Customer reporting for themselves: unassigned, no asset link
+          (isCustomer()
+            && incoming().customerId == uid()
+            && incoming().assignedTechnicianId == null
+            && incoming().assignedTechnicianName == null
+            && incoming().assetId == null)
+          // Call centre logging on a customer's behalf
+          || (hasRole(['admin', 'call_centre'])
+            && exists(/databases/$(database)/documents/customers/$(incoming().customerId))
+            && technicianOk(incoming())
+            && assetOk(incoming()))
+        );
 
-      allow update: if hasRole(['admin', 'call_centre'])
-        // Technician: progress their own assigned job
+      allow update: if isNow(incoming().updatedAt) && (
+        // Call centre / admin: triage, assign, escalate, resolve
+        (hasRole(['admin', 'call_centre'])
+          && validTicket(incoming())
+          && unchanged(['ticketNumber', 'customerId', 'createdBy', 'createdAt'])
+          && accountBelongs(incoming())
+          && technicianOk(incoming())
+          && assetOk(incoming()))
+        // Technician: move their own open job forward. Resolved jobs stay resolved.
         || (hasRole(['technician'])
-            && resource.data.assignedTechnicianId == request.auth.uid
-            && onlyChanges(['status', 'updatedAt', 'resolvedAt'])
-            && request.resource.data.status in ['IN_PROGRESS', 'RESOLVED'])
-        // Asset manager: link an asset only
-        || (hasRole(['asset_manager']) && onlyChanges(['assetId', 'updatedAt']));
+          && existing().assignedTechnicianId == uid()
+          && existing().status != 'RESOLVED'
+          && onlyChanges(['status', 'updatedAt', 'resolvedAt'])
+          && ((incoming().status == 'IN_PROGRESS' && incoming().resolvedAt == null)
+              || (incoming().status == 'RESOLVED' && isNow(incoming().resolvedAt))))
+        // Asset manager: link an existing asset
+        || (hasRole(['asset_manager'])
+          && onlyChanges(['assetId', 'updatedAt'])
+          && assetOk(incoming()))
+      );
 
       allow delete: if isAdmin();
 
-      // Append-only history. Access follows the parent ticket, so reassigning
-      // a ticket automatically gives the new technician its full history.
+      // ------------------------------------------------ ticket history
+      // Append-only. Access follows the parent ticket (getAfter, so a new
+      // ticket and its first history entry can be written in one batch).
       match /ticketHistory/{entryId} {
-        allow read: if canReadTicket(
-          get(/databases/$(database)/documents/tickets/$(ticketId)).data);
-        allow create: if hasRole(['admin', 'call_centre', 'technician'])
-          && canReadTicket(get(/databases/$(database)/documents/tickets/$(ticketId)).data)
-          && request.resource.data.changedBy == request.auth.uid;
+        function parentTicket() {
+          return getAfter(/databases/$(database)/documents/tickets/$(ticketId)).data;
+        }
+        function validEntry(d) {
+          return hasExactly(d, ['fromStatus', 'toStatus', 'note', 'changedBy', 'changedByName', 'createdAt'])
+            && (d.fromStatus == null || d.fromStatus in ticketStatuses())
+            && (d.toStatus == null || d.toStatus in ticketStatuses())
+            && isText(d.note, 2000)
+            && isRequiredText(d.changedByName, 100)
+            && d.changedBy == uid()
+            && isNow(d.createdAt);
+        }
+
+        allow read: if canReadTicket(get(/databases/$(database)/documents/tickets/$(ticketId)).data);
+
+        allow create: if validEntry(incoming()) && (
+          (hasRole(['admin', 'call_centre', 'technician']) && canReadTicket(parentTicket()))
+          // Customers: the initial "reported" entry or a plain note on their own ticket
+          || (isCustomer()
+            && parentTicket().customerId == uid()
+            && incoming().fromStatus == null
+            && (incoming().toStatus == null || incoming().toStatus == 'OPEN'))
+        );
+
         allow update, delete: if false;
       }
     }
 
-    // -- Infrastructure -------------------------------------------------------
+    // =========================================================== ASSETS
     match /assets/{assetId} {
-      allow read: if isStaff();
-      allow write: if hasRole(['admin', 'asset_manager']);
-    }
+      function validAsset(d) {
+        return hasExactly(d, ['code', 'name', 'type', 'location', 'area', 'status',
+                              'description', 'createdAt', 'updatedAt'])
+          && d.code is string && d.code.matches('^[A-Z]{2,5}-[0-9]{1,5}$')
+          && isRequiredText(d.name, 120)
+          && d.type in ['RESERVOIR', 'BOREHOLE', 'TREATMENT_PLANT', 'PIPE']
+          && isRequiredText(d.location, 200)
+          && d.area in areas()
+          && d.status in ['ACTIVE', 'MAINTENANCE', 'OFFLINE']
+          && isText(d.description, 1000);
+      }
 
-    match /waterQualityTests/{testId} {
-      allow read: if hasRole(['admin', 'water_quality', 'asset_manager']);
-      allow create, update: if hasRole(['admin', 'water_quality']);
+      allow read: if isStaff();
+      allow create: if hasRole(['admin', 'asset_manager'])
+        && validAsset(incoming())
+        && isNow(incoming().createdAt)
+        && isNow(incoming().updatedAt);
+      allow update: if hasRole(['admin', 'asset_manager'])
+        && validAsset(incoming())
+        && unchanged(['createdAt'])
+        && isNow(incoming().updatedAt);
       allow delete: if isAdmin();
     }
 
-    // -- Communications -------------------------------------------------------
-    match /outageNotices/{noticeId} {
-      allow read: if signedIn(); // customers see active outages
-      allow write: if hasRole(['admin', 'communications']);
+    // =========================================================== WATER QUALITY
+    match /waterQualityTests/{testId} {
+      function outOfRange(d) {
+        return (d.acceptableMin != null && d.result < d.acceptableMin)
+          || (d.acceptableMax != null && d.result > d.acceptableMax);
+      }
+      function validTest(d) {
+        return hasExactly(d, ['assetId', 'assetName', 'sampleDate', 'parameter', 'result', 'unit',
+                              'acceptableMin', 'acceptableMax', 'status', 'recordedBy', 'createdAt'])
+          && isId(d.assetId)
+          && exists(/databases/$(database)/documents/assets/$(d.assetId))
+          && isRequiredText(d.assetName, 120)
+          && d.sampleDate is timestamp && d.sampleDate <= request.time
+          && d.parameter in ['PH', 'TURBIDITY', 'FREE_CHLORINE', 'E_COLI', 'CONDUCTIVITY']
+          && d.result is number
+          && isRequiredText(d.unit, 30)
+          && (d.acceptableMin == null || d.acceptableMin is number)
+          && (d.acceptableMax == null || d.acceptableMax is number)
+          && d.status in ['NORMAL', 'ALERT']
+          // The status must match the numbers: an out-of-range result can't be filed as NORMAL
+          && ((d.status == 'ALERT') == outOfRange(d));
+      }
+
+      allow read: if hasRole(['admin', 'water_quality', 'asset_manager']);
+      allow create: if hasRole(['admin', 'water_quality'])
+        && validTest(incoming())
+        && incoming().recordedBy == uid()
+        && isNow(incoming().createdAt);
+      allow update: if hasRole(['admin', 'water_quality'])
+        && validTest(incoming())
+        && unchanged(['recordedBy', 'createdAt']);
+      allow delete: if isAdmin();
     }
 
+    // =========================================================== OUTAGE NOTICES
+    match /outageNotices/{noticeId} {
+      function validNotice(d) {
+        return hasExactly(d, ['title', 'description', 'affectedAreas', 'startTime', 'expectedResolution',
+                              'severity', 'status', 'createdBy', 'createdAt', 'updatedAt'])
+          && isRequiredText(d.title, 120)
+          && isRequiredText(d.description, 2000)
+          && d.affectedAreas is list
+          && d.affectedAreas.size() > 0
+          && d.affectedAreas.hasOnly(areas())
+          && d.startTime is timestamp
+          && (d.expectedResolution == null
+              || (d.expectedResolution is timestamp && d.expectedResolution >= d.startTime))
+          && d.severity in priorities()
+          && d.status in ['SCHEDULED', 'ACTIVE', 'RESOLVED'];
+      }
+
+      allow read: if signedIn(); // customers see outages in their area
+      allow create: if hasRole(['admin', 'communications'])
+        && validNotice(incoming())
+        && incoming().createdBy == uid()
+        && isNow(incoming().createdAt)
+        && isNow(incoming().updatedAt);
+      allow update: if hasRole(['admin', 'communications'])
+        && validNotice(incoming())
+        && unchanged(['createdBy', 'createdAt'])
+        && isNow(incoming().updatedAt);
+      allow delete: if isAdmin();
+    }
+
+    // =========================================================== NOTIFICATIONS
     match /notifications/{notificationId} {
-      allow read: if signedIn() && resource.data.userId == request.auth.uid;
-      // Owners may only mark as read. Creation is decided in Phase 12.
-      allow update: if signedIn() && resource.data.userId == request.auth.uid
-        && onlyChanges(['read']);
+      allow read: if signedIn() && resource.data.userId == uid();
+      // The recipient may only mark it read or unread. Created server-side (Phase 12).
+      allow update: if signedIn() && resource.data.userId == uid()
+        && onlyChanges(['read'])
+        && incoming().read is bool;
       allow create, delete: if false;
     }
 
-    // -- Audit ----------------------------------------------------------------
+    // =========================================================== AUDIT LOGS
     match /auditLogs/{auditId} {
       allow read: if isAdmin();
-      allow write: if false; // written server-side only
+      allow write: if false; // server-side only
     }
   }
 }
