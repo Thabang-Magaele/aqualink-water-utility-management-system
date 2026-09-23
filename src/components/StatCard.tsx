@@ -37,12 +37,18 @@ export default function StatCard({
       {loading ? (
         <Skeleton className="mt-2 h-8 w-20" />
       ) : (
-        <p className="mt-1 text-3xl font-bold tracking-tight tabular-nums">{value}</p>
+        <p
+          className={`mt-1 font-bold tracking-tight whitespace-nowrap tabular-nums ${
+            String(value).length > 9 ? 'text-2xl' : 'text-3xl'
+          }`}
+        >
+          {value}
+        </p>
       )}
       {hint && !loading && <p className="text-ink/60 mt-1 text-sm">{hint}</p>}
     </>
   )
-  const classes = 'block rounded-lg border border-mist bg-white p-5 shadow-xs'
+  const classes = 'block h-full rounded-lg border border-mist bg-white p-5 shadow-xs'
   return to ? (
     <Link to={to} className={`${classes} hover:border-channel transition-colors`}>
       {body}

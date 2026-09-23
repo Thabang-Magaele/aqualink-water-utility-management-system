@@ -2,7 +2,7 @@
 
 AquaLink is a web-based MVP for **Silulumanzi**: a Customer Portal (accounts, bills, usage, leak reports) and a role-based Staff Console (call centre, technicians, billing, assets, water quality, communications), built on React and Firebase.
 
-> Status: **Phase 5: security rules.** Every collection validates who, what and how it links. See [docs/security.md](docs/security.md).
+> Status: **Phase 6: staff dashboard.** One role-aware dashboard with live figures and recent activity.
 
 ## Tech stack
 
@@ -113,6 +113,25 @@ Full description, relationship diagram and query/index map: **[docs/data-model.m
 - Business helpers with no Firebase dependency: `roundMoney`, `calculateConsumption`, `generateReference`, `evaluateWaterQuality` in `src/utils/domain.ts`.
 - Sample data: `npm run seed:sample -- --dry-run` checks it; add `--key <service-account.json>` to write it.
 
+## Staff dashboard (Phase 6)
+
+One dashboard for every staff role (`src/pages/staff/StaffDashboardPage.tsx`). What each role sees is data, not separate pages:
+
+- `src/services/dashboardQueries.ts`: every figure (`METRICS`) and activity feed (`ACTIVITY_SOURCES`), the roles that see it, the collection it reads, and the exact Firestore query. Counts and sums run on the server (`getAggregateFromServer`), so no documents are downloaded.
+- `src/pages/staff/dashboard/metricDisplay.ts`: label, icon, colour, hint and link for each figure.
+- To add a figure: add a `METRICS` entry and a `METRIC_DISPLAY` entry. `npm test` checks its roles can read its collection; `npm run test:rules` proves the rules allow the real query.
+
+Figures load independently: a failing or not-yet-indexed query shows a message on its own card only.
+
+## Tests
+
+| Command               | What it runs                                                                              |
+| --------------------- | ----------------------------------------------------------------------------------------- |
+| `npm test`            | Unit and component tests (Vitest + Testing Library), files named `*.test.ts(x)` in `src/` |
+| `npm run test:watch`  | Same, re-running on save                                                                  |
+| `npm run check:rules` | Static checks on `firestore.rules`                                                        |
+| `npm run test:rules`  | Every `tests/rules/*.test.ts` against the Firestore emulator                              |
+
 ## Scripts
 
 | Command                            | What it does                                                           |
@@ -120,6 +139,7 @@ Full description, relationship diagram and query/index map: **[docs/data-model.m
 | `npm run dev`                      | Start the dev server                                                   |
 | `npm run build`                    | Type-check and build to `dist/`                                        |
 | `npm run preview`                  | Serve the production build locally                                     |
+| `npm test`                         | Unit and component tests (Vitest)                                      |
 | `npm run lint`                     | ESLint                                                                 |
 | `npm run format` / `format:check`  | Prettier                                                               |
 | `npm --prefix functions run build` | Compile Cloud Functions to `functions/lib`                             |

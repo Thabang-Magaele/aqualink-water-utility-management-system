@@ -20,7 +20,7 @@ export default function Card({
   children,
 }: CardProps) {
   return (
-    <section className={`border-mist rounded-lg border bg-white shadow-xs ${className}`}>
+    <section className={`border-mist min-w-0 rounded-lg border bg-white shadow-xs ${className}`}>
       {(title || actions) && (
         <header className="border-mist flex flex-wrap items-start justify-between gap-3 border-b px-5 py-4">
           <div>
