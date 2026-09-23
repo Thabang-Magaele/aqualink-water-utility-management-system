@@ -17,6 +17,19 @@ export const ROLES = [
 
 export type Role = (typeof ROLES)[number]
 
+export const STAFF_ROLES = ROLES.filter((r) => r !== 'customer') as Exclude<Role, 'customer'>[]
+
+export const ROLE_LABELS: Record<Role, string> = {
+  admin: 'Administrator',
+  call_centre: 'Call centre',
+  technician: 'Technician',
+  billing: 'Billing',
+  asset_manager: 'Asset manager',
+  water_quality: 'Water quality',
+  communications: 'Communications',
+  customer: 'Customer',
+}
+
 export function isRole(value: unknown): value is Role {
   return typeof value === 'string' && (ROLES as readonly string[]).includes(value)
 }

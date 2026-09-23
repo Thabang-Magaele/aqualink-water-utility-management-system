@@ -7,7 +7,7 @@ import type { Role } from '../types/user'
 
 interface ProtectedRouteProps {
   /** If given, only these roles may enter. Omit to allow any signed-in user. */
-  roles?: Role[]
+  roles?: readonly Role[]
   children?: ReactNode
 }
 

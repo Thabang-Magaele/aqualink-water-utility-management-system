@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 
 export default function UnauthorizedPage() {
   return (
-    <main className="flex min-h-dvh flex-col items-center justify-center px-6 text-center">
+    <main className="flex min-h-[70vh] flex-col items-center justify-center px-6 text-center">
       <ShieldX className="text-fault size-12" aria-hidden="true" />
       <h1 className="mt-4 text-2xl font-bold">You don't have access to this page</h1>
       <p className="text-ink/70 mt-2 max-w-md">

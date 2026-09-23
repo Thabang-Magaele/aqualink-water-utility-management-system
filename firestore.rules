@@ -1,20 +1,48 @@
 rules_version = '2';
 
-// PHASE 1: only the users collection is open, and only to its owner.
-// Anything not matched below is denied by default.
-// Full role-based rules arrive in Phase 2 and Phase 5.
+// -----------------------------------------------------------------------------
+// AquaLink Firestore Security Rules: PHASE 2 (role-based access)
+//
+// Roles come ONLY from the verified ID token's custom claim `role`, which only
+// the server (Cloud Functions / set-role script) can set. A token with no claim
+// is treated as "customer". Anything not matched here is denied.
+//
+// Customer ownership: a customer's own records carry `customerId == <their uid>`,
+// and their customers/{id} document uses their uid as its ID.
+//
+// Phase 5 tightens these further (field validation, create/update shapes).
 // Never add `allow read, write: if true;`
+// -----------------------------------------------------------------------------
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // -- Helpers --------------------------------------------------------------
     function signedIn() {
       return request.auth != null;
     }
-
-    function isOwner(uid) {
-      return signedIn() && request.auth.uid == uid;
+    function userRole() {
+      return request.auth.token.get('role', 'customer');
     }
-
+    function hasRole(roles) {
+      return signedIn() && userRole() in roles;
+    }
+    function isAdmin() {
+      return hasRole(['admin']);
+    }
+    function isStaff() {
+      return hasRole(['admin', 'call_centre', 'technician', 'billing',
+                      'asset_manager', 'water_quality', 'communications']);
+    }
+    function isCustomer() {
+      return signedIn() && userRole() == 'customer';
+    }
+    // Customer reading a document that belongs to them
+    function ownsRecord() {
+      return isCustomer() && resource.data.customerId == request.auth.uid;
+    }
+    function onlyChanges(fields) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(fields);
+    }
     function validProfileFields(data) {
       return data.displayName is string
         && data.displayName.size() > 0
@@ -23,12 +51,12 @@ service cloud.firestore {
         && data.phone.size() <= 20;
     }
 
+    // -- Users (login profiles) -----------------------------------------------
     match /users/{uid} {
-      allow read: if isOwner(uid);
+      allow read: if (signedIn() && request.auth.uid == uid) || isAdmin();
 
-      // Self-registration: only your own doc, only known fields,
-      // and the role can ONLY be "customer". Staff roles are set server-side.
-      allow create: if isOwner(uid)
+      // Self-registration: own doc only, role can ONLY be "customer".
+      allow create: if signedIn() && request.auth.uid == uid
         && request.resource.data.keys().hasOnly(
              ['uid', 'displayName', 'email', 'phone', 'role', 'createdAt', 'updatedAt'])
         && request.resource.data.uid == uid
@@ -38,14 +66,114 @@ service cloud.firestore {
         && request.resource.data.updatedAt == request.time
         && validProfileFields(request.resource.data);
 
-      // Users may change their name and phone only. Never role, email or uid.
-      allow update: if isOwner(uid)
-        && request.resource.data.diff(resource.data).affectedKeys()
-             .hasOnly(['displayName', 'phone', 'updatedAt'])
+      // Name and phone only. Role changes happen server-side (setUserRole).
+      allow update: if signedIn() && request.auth.uid == uid
+        && onlyChanges(['displayName', 'phone', 'updatedAt'])
         && request.resource.data.updatedAt == request.time
         && validProfileFields(request.resource.data);
 
       allow delete: if false;
+    }
+
+    // -- Customers & accounts -------------------------------------------------
+    match /customers/{customerId} {
+      allow read: if (isCustomer() && request.auth.uid == customerId)
+        || hasRole(['admin', 'call_centre', 'billing']);
+      allow create, update: if hasRole(['admin', 'call_centre']);
+      allow delete: if isAdmin();
+    }
+
+    match /accounts/{accountId} {
+      allow read: if ownsRecord() || hasRole(['admin', 'call_centre', 'billing']);
+      allow write: if hasRole(['admin', 'billing']);
+    }
+
+    // -- Metering & billing (technicians have NO access) ---------------------
+    match /meters/{meterId} {
+      allow read: if ownsRecord() || hasRole(['admin', 'call_centre', 'billing']);
+      allow write: if hasRole(['admin', 'billing']);
+    }
+
+    match /readings/{readingId} {
+      allow read: if ownsRecord() || hasRole(['admin', 'call_centre', 'billing']);
+      allow write: if hasRole(['admin', 'billing']);
+    }
+
+    match /invoices/{invoiceId} {
+      allow read: if ownsRecord() || hasRole(['admin', 'call_centre', 'billing']);
+      allow write: if hasRole(['admin', 'billing']);
+    }
+
+    match /payments/{paymentId} {
+      allow read: if ownsRecord() || hasRole(['admin', 'billing']);
+      allow write: if false; // created only by the payment Cloud Function
+    }
+
+    // -- Tickets (leak / outage reports) --------------------------------------
+    match /tickets/{ticketId} {
+      allow read: if ownsRecord()
+        || hasRole(['admin', 'call_centre', 'asset_manager'])
+        || (hasRole(['technician']) && resource.data.assignedTechnicianId == request.auth.uid);
+
+      // Customers may report issues for themselves only, always starting OPEN and unassigned.
+      allow create: if hasRole(['admin', 'call_centre'])
+        || (isCustomer()
+            && request.resource.data.customerId == request.auth.uid
+            && request.resource.data.createdBy == request.auth.uid
+            && request.resource.data.status == 'OPEN'
+            && request.resource.data.assignedTechnicianId == null);
+
+      allow update: if hasRole(['admin', 'call_centre'])
+        // Technician: status only, on their own assigned job
+        || (hasRole(['technician'])
+            && resource.data.assignedTechnicianId == request.auth.uid
+            && onlyChanges(['status', 'updatedAt'])
+            && request.resource.data.status in ['IN_PROGRESS', 'RESOLVED'])
+        // Asset manager: link an asset only
+        || (hasRole(['asset_manager']) && onlyChanges(['assetId', 'updatedAt']));
+
+      allow delete: if isAdmin();
+    }
+
+    match /ticketHistory/{entryId} {
+      allow read: if ownsRecord()
+        || hasRole(['admin', 'call_centre'])
+        || (hasRole(['technician']) && resource.data.assignedTechnicianId == request.auth.uid);
+      allow create: if hasRole(['admin', 'call_centre', 'technician'])
+        && request.resource.data.changedBy == request.auth.uid;
+      allow update, delete: if false; // history is append-only
+    }
+
+    // -- Infrastructure -------------------------------------------------------
+    match /assets/{assetId} {
+      allow read: if isStaff();
+      allow write: if hasRole(['admin', 'asset_manager']);
+    }
+
+    match /waterQualityTests/{testId} {
+      allow read: if hasRole(['admin', 'water_quality', 'asset_manager']);
+      allow create, update: if hasRole(['admin', 'water_quality']);
+      allow delete: if isAdmin();
+    }
+
+    // -- Communications -------------------------------------------------------
+    match /outageNotices/{noticeId} {
+      allow read: if signedIn(); // customers see active outages
+      allow write: if hasRole(['admin', 'communications']);
+    }
+
+    match /notifications/{notificationId} {
+      allow read: if signedIn() && resource.data.userId == request.auth.uid;
+      // Owners may only mark as read. Creation is decided in Phase 12.
+      allow update: if signedIn() && resource.data.userId == request.auth.uid
+        && onlyChanges(['read']);
+      allow create, delete: if false;
+    }
+
+    // -- Audit ----------------------------------------------------------------
+    match /auditLogs/{auditId} {
+      allow read: if isAdmin();
+      allow write: if false; // written server-side only
     }
   }
 }

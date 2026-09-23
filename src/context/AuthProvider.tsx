@@ -60,6 +60,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const profile = profileState && profileState.uid === uid ? profileState.profile : null
   const profileLoading = Boolean(uid) && profileState?.uid !== uid
 
+  // When an admin changes this user's role, the server updates users/{uid}.role.
+  // Seeing that change, refresh the ID token so the new claim applies immediately.
+  const profileRole = profile?.role
+  useEffect(() => {
+    if (profileRole && session.role && profileRole !== session.role) {
+      auth.currentUser?.getIdToken(true).catch(() => {})
+    }
+  }, [profileRole, session.role])
+
   const register = useCallback(async (input: authService.RegistrationInput) => {
     setRegistering(true)
     try {
