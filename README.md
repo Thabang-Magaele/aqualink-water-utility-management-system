@@ -2,7 +2,7 @@
 
 AquaLink is a web-based MVP for **Silulumanzi**: a Customer Portal (accounts, bills, usage, leak reports) and a role-based Staff Console (call centre, technicians, billing, assets, water quality, communications), built on React and Firebase.
 
-> Status: **Phase 0: project foundation.** No features yet. The app shows the sign-in screen and confirms it can reach Firebase.
+> Status: **Phase 1: authentication.** Customers can register, sign in and sign out; sessions survive a page refresh; signed-out users can't reach app pages.
 
 ## Tech stack
 
@@ -37,6 +37,14 @@ npm run dev                     # http://localhost:5173
 ```
 
 On the sign-in page (development mode only) a status line should read **Connected to `<project-id>`. Firestore reachable, rules enforced.** If `.env.local` is missing values you'll see a setup screen listing them.
+
+## Authentication (Phase 1)
+
+- Firebase Authentication with email and password. Enable **Email/Password** under Authentication, then Sign-in method, in the Firebase console.
+- `AuthProvider` (`src/context/`) tracks the signed-in user; any component reads it with `useAuth()`.
+- `ProtectedRoute` shows a loader while Firebase restores the session, sends signed-out users to `/login`, and shows an access-denied page when a `roles` list is given and the user's role isn't in it. `GuestRoute` keeps signed-in users off `/login` and `/register`.
+- Roles are read from **Firebase Custom Claims** in the ID token, never from client data. A user with no claim is treated as `customer`. Claims are set server-side from Phase 2.
+- `/register` is for customers only. It creates the Auth account and a `users/{uid}` profile. Firestore rules only accept that profile with `role: "customer"`, so nobody can register themselves as staff.
 
 ## Scripts
 

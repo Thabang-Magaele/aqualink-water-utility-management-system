@@ -38,5 +38,8 @@
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.70.1",
     "vite": "^8.3.0"
+  },
+  "allowScripts": {
+    "@firebase/util@1.15.3": true
   }
 }

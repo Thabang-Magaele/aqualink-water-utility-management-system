@@ -1,12 +1,51 @@
 rules_version = '2';
 
-// PHASE 0: everything is locked. No client can read or write any document.
-// Role-based rules are written in Phase 2 and Phase 5.
-// Never replace this with `allow read, write: if true;`
+// PHASE 1: only the users collection is open, and only to its owner.
+// Anything not matched below is denied by default.
+// Full role-based rules arrive in Phase 2 and Phase 5.
+// Never add `allow read, write: if true;`
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /{document=**} {
-      allow read, write: if false;
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    function validProfileFields(data) {
+      return data.displayName is string
+        && data.displayName.size() > 0
+        && data.displayName.size() <= 100
+        && data.phone is string
+        && data.phone.size() <= 20;
+    }
+
+    match /users/{uid} {
+      allow read: if isOwner(uid);
+
+      // Self-registration: only your own doc, only known fields,
+      // and the role can ONLY be "customer". Staff roles are set server-side.
+      allow create: if isOwner(uid)
+        && request.resource.data.keys().hasOnly(
+             ['uid', 'displayName', 'email', 'phone', 'role', 'createdAt', 'updatedAt'])
+        && request.resource.data.uid == uid
+        && request.resource.data.email == request.auth.token.email
+        && request.resource.data.role == 'customer'
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time
+        && validProfileFields(request.resource.data);
+
+      // Users may change their name and phone only. Never role, email or uid.
+      allow update: if isOwner(uid)
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['displayName', 'phone', 'updatedAt'])
+        && request.resource.data.updatedAt == request.time
+        && validProfileFields(request.resource.data);
+
+      allow delete: if false;
     }
   }
 }
