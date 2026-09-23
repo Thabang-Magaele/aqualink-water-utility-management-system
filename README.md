@@ -2,7 +2,7 @@
 
 AquaLink is a web-based MVP for **Silulumanzi**: a Customer Portal (accounts, bills, usage, leak reports) and a role-based Staff Console (call centre, technicians, billing, assets, water quality, communications), built on React and Firebase.
 
-> Status: **Phase 3: app shell and UI system.** Responsive shell (sidebar, mobile menu, top bar) and a shared component library that every feature page reuses.
+> Status: **Phase 4: data model.** Typed Firestore collections, composite indexes, and a sample dataset. See [docs/data-model.md](docs/data-model.md).
 
 ## Tech stack
 
@@ -104,6 +104,15 @@ Build every page from these instead of writing new styles. Run the app and open 
 
 The shell lives in `src/layouts/`: `AppLayout` (sidebar on large screens, slide-in menu below 1024px), `Topbar` (notification bell, account menu) and `SidebarNav`, which reads the same role-aware config as the routes.
 
+## Data model (Phase 4)
+
+Full description, relationship diagram and query/index map: **[docs/data-model.md](docs/data-model.md)**.
+
+- Types for all 14 collections: `src/types/models.ts` (plus `User` in `src/types/user.ts`).
+- Typed collection references: `collections.tickets`, `ticketHistory(ticketId)`, … in `src/services/firestore.ts`. Reads come back with `id` filled in.
+- Business helpers with no Firebase dependency: `roundMoney`, `calculateConsumption`, `generateReference`, `evaluateWaterQuality` in `src/utils/domain.ts`.
+- Sample data: `npm run seed:sample -- --dry-run` checks it; add `--key <service-account.json>` to write it.
+
 ## Scripts
 
 | Command                            | What it does                                                           |
@@ -114,6 +123,7 @@ The shell lives in `src/layouts/`: `AppLayout` (sidebar on large screens, slide-
 | `npm run lint`                     | ESLint                                                                 |
 | `npm run format` / `format:check`  | Prettier                                                               |
 | `npm --prefix functions run build` | Compile Cloud Functions to `functions/lib`                             |
+| `npm run seed:sample`              | Build, check and (with `--key`) write the sample dataset               |
 | `npm run test:rules`               | Run the Firestore security-rules tests in the emulator                 |
 | `firebase emulators:start`         | Run Auth, Firestore, Functions locally (set `VITE_USE_EMULATORS=true`) |
 

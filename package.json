@@ -11,7 +11,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "tsc -b",
-    "test:rules": "firebase emulators:exec --only firestore --project demo-aqualink \"node --test tests/rules/\""
+    "seed:sample": "tsx scripts/seed-sample.ts",
+    "test:rules": "firebase emulators:exec --only firestore --project demo-aqualink \"node --test tests/rules/access.test.mjs\""
   },
   "dependencies": {
     "firebase": "^12.19.0",
@@ -33,10 +34,12 @@
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.7",
+    "firebase-admin": "^14.4.0",
     "globals": "^17.12.0",
     "prettier": "^3.9.9",
     "prettier-plugin-tailwindcss": "^0.8.1",
     "tailwindcss": "^4.3.3",
+    "tsx": "^4.23.15",
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.70.1",
     "vite": "^8.3.0"

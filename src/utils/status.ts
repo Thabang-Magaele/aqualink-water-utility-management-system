@@ -32,6 +32,9 @@ export const STATUS_STYLES: Record<string, StatusStyle> = {
   MAINTENANCE: { label: 'Maintenance', tone: 'warning' },
   OFFLINE: { label: 'Offline', tone: 'danger' },
   SUSPENDED: { label: 'Suspended', tone: 'danger' },
+  CLOSED: { label: 'Closed', tone: 'neutral' },
+  FAULTY: { label: 'Faulty', tone: 'danger' },
+  REMOVED: { label: 'Removed', tone: 'neutral' },
   // Outage notices
   SCHEDULED: { label: 'Scheduled', tone: 'info' },
   // Severity / priority

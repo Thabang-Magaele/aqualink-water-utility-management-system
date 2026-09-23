@@ -111,9 +111,13 @@ service cloud.firestore {
 
     // -- Tickets (leak / outage reports) --------------------------------------
     match /tickets/{ticketId} {
-      allow read: if ownsRecord()
-        || hasRole(['admin', 'call_centre', 'asset_manager'])
-        || (hasRole(['technician']) && resource.data.assignedTechnicianId == request.auth.uid);
+      function canReadTicket(ticket) {
+        return (isCustomer() && ticket.customerId == request.auth.uid)
+          || hasRole(['admin', 'call_centre', 'asset_manager'])
+          || (hasRole(['technician']) && ticket.assignedTechnicianId == request.auth.uid);
+      }
+
+      allow read: if canReadTicket(resource.data);
 
       // Customers may report issues for themselves only, always starting OPEN and unassigned.
       allow create: if hasRole(['admin', 'call_centre'])
@@ -124,24 +128,26 @@ service cloud.firestore {
             && request.resource.data.assignedTechnicianId == null);
 
       allow update: if hasRole(['admin', 'call_centre'])
-        // Technician: status only, on their own assigned job
+        // Technician: progress their own assigned job
         || (hasRole(['technician'])
             && resource.data.assignedTechnicianId == request.auth.uid
-            && onlyChanges(['status', 'updatedAt'])
+            && onlyChanges(['status', 'updatedAt', 'resolvedAt'])
             && request.resource.data.status in ['IN_PROGRESS', 'RESOLVED'])
         // Asset manager: link an asset only
         || (hasRole(['asset_manager']) && onlyChanges(['assetId', 'updatedAt']));
 
       allow delete: if isAdmin();
-    }
 
-    match /ticketHistory/{entryId} {
-      allow read: if ownsRecord()
-        || hasRole(['admin', 'call_centre'])
-        || (hasRole(['technician']) && resource.data.assignedTechnicianId == request.auth.uid);
-      allow create: if hasRole(['admin', 'call_centre', 'technician'])
-        && request.resource.data.changedBy == request.auth.uid;
-      allow update, delete: if false; // history is append-only
+      // Append-only history. Access follows the parent ticket, so reassigning
+      // a ticket automatically gives the new technician its full history.
+      match /ticketHistory/{entryId} {
+        allow read: if canReadTicket(
+          get(/databases/$(database)/documents/tickets/$(ticketId)).data);
+        allow create: if hasRole(['admin', 'call_centre', 'technician'])
+          && canReadTicket(get(/databases/$(database)/documents/tickets/$(ticketId)).data)
+          && request.resource.data.changedBy == request.auth.uid;
+        allow update, delete: if false;
+      }
     }
 
     // -- Infrastructure -------------------------------------------------------

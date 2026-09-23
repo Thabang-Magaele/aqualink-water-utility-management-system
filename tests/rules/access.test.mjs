@@ -136,3 +136,36 @@ describe('Roles cannot be self-assigned', () => {
     await assertFails(as('custA', 'customer').doc('users/custA').update({ role: 'admin' }))
   })
 })
+
+describe('Ticket history follows the parent ticket', () => {
+  test('owner customer can read history', () =>
+    assertSucceeds(as('custA', 'customer').collection('tickets/t1/ticketHistory').get()))
+  test('another customer cannot', () =>
+    assertFails(as('custB', 'customer').collection('tickets/t1/ticketHistory').get()))
+  test('assigned technician can read and add notes', async () => {
+    await assertSucceeds(as('tech1', 'technician').collection('tickets/t1/ticketHistory').get())
+    await assertSucceeds(
+      as('tech1', 'technician')
+        .collection('tickets/t1/ticketHistory')
+        .add({ note: 'On site', changedBy: 'tech1' }),
+    )
+  })
+  test('unassigned technician cannot read or add', async () => {
+    await assertFails(as('tech2', 'technician').collection('tickets/t1/ticketHistory').get())
+    await assertFails(
+      as('tech2', 'technician')
+        .collection('tickets/t1/ticketHistory')
+        .add({ note: 'x', changedBy: 'tech2' }),
+    )
+  })
+  test('after reassignment the new technician sees the full history', async () => {
+    await env.withSecurityRulesDisabled((ctx) =>
+      ctx.firestore().doc('tickets/t1').update({ assignedTechnicianId: 'tech2' }),
+    )
+    await assertSucceeds(as('tech2', 'technician').collection('tickets/t1/ticketHistory').get())
+  })
+  test('history cannot be edited', () =>
+    assertFails(
+      as('cc1', 'call_centre').doc('tickets/t1/ticketHistory/h1').update({ note: 'rewritten' }),
+    ))
+})

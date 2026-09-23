@@ -50,3 +50,6 @@ export interface UserProfile {
  * "Unauthorized" (signed in but wrong role) is decided per route by ProtectedRoute.
  */
 export type AuthStatus = 'authenticating' | 'unauthenticated' | 'authenticated'
+
+/** Alias so the data model reads naturally (users/{uid}). */
+export type User = UserProfile
