@@ -12,7 +12,8 @@
     "format:check": "prettier --check .",
     "typecheck": "tsc -b",
     "seed:sample": "tsx scripts/seed-sample.ts",
-    "test:rules": "firebase emulators:exec --only firestore --project demo-aqualink \"node --test tests/rules/access.test.mjs\""
+    "test:rules": "firebase emulators:exec --only firestore --project demo-aqualink \"node --import tsx --test tests/rules/access.test.ts\"",
+    "check:rules": "tsx scripts/check-rules.ts"
   },
   "dependencies": {
     "firebase": "^12.19.0",
