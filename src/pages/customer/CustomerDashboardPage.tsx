@@ -1,29 +1,30 @@
+import Card from '../../components/Card'
+import PageHeader from '../../components/PageHeader'
 import { useAuth } from '../../hooks/useAuth'
+import { formatDate } from '../../utils/format'
 
-/** Phase 2 customer home. Phase 17 adds balance, bills, usage and tickets. */
+/** Customer home. Phase 17 adds balance, bills, usage, tickets and outages. */
 export default function CustomerDashboardPage() {
   const { user, profile, profileLoading } = useAuth()
   const fallback = profileLoading ? '…' : 'Not available'
 
   return (
-    <section className="max-w-2xl">
-      <h1 className="text-2xl font-bold tracking-tight">
-        Welcome, {profile?.displayName || user?.displayName || user?.email}
-      </h1>
-      <p className="text-ink/70 mt-2">Your account summary, bills and usage will appear here.</p>
-
-      <dl className="divide-mist border-mist mt-8 divide-y rounded-lg border bg-white">
-        <Row label="Email" value={user?.email} />
-        <Row label="Mobile" value={profile ? profile.phone || 'Not provided' : fallback} />
-        <Row
-          label="Member since"
-          value={
-            profile?.createdAt?.toDate().toLocaleDateString('en-ZA', { dateStyle: 'long' }) ??
-            fallback
-          }
-        />
-      </dl>
-    </section>
+    <>
+      <PageHeader
+        title={`Welcome, ${profile?.displayName || user?.displayName || user?.email}`}
+        description="Your account summary, bills and usage will appear here."
+      />
+      <Card title="Your details" className="max-w-2xl" padded={false}>
+        <dl className="divide-mist divide-y">
+          <Row label="Email" value={user?.email} />
+          <Row label="Mobile" value={profile ? profile.phone || 'Not provided' : fallback} />
+          <Row
+            label="Member since"
+            value={profile?.createdAt ? formatDate(profile.createdAt) : fallback}
+          />
+        </dl>
+      </Card>
+    </>
   )
 }
 

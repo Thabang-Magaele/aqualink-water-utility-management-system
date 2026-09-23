@@ -2,7 +2,7 @@
 
 AquaLink is a web-based MVP for **Silulumanzi**: a Customer Portal (accounts, bills, usage, leak reports) and a role-based Staff Console (call centre, technicians, billing, assets, water quality, communications), built on React and Firebase.
 
-> Status: **Phase 2: role-based access control.** Each role sees only its own sections, and Firestore rules and Cloud Functions enforce the same boundaries on the server.
+> Status: **Phase 3: app shell and UI system.** Responsive shell (sidebar, mobile menu, top bar) and a shared component library that every feature page reuses.
 
 ## Tech stack
 
@@ -82,6 +82,27 @@ Without `--create` it changes the role of an existing account. After that, the a
 **Proving the rules:** `npm run test:rules` runs `tests/rules/access.test.mjs` against the Firestore emulator (needs Java). It checks that technicians can't read billing data, billing can't modify assets, customers can't read other customers' accounts, and admins can reach admin data.
 
 **API note:** calling `/api/setUserRole` in the cloud requires the functions to be deployed, which needs the Blaze plan. Locally, run `firebase emulators:start` and set `VITE_USE_EMULATORS=true`.
+
+## UI system (Phase 3)
+
+Build every page from these instead of writing new styles. Run the app and open **/ui-kit** (development only, also in the account menu) to see them all live.
+
+| Need                                       | Use                                                                            |
+| ------------------------------------------ | ------------------------------------------------------------------------------ |
+| Page title, breadcrumbs, page actions      | `PageHeader` (breadcrumbs are automatic from the menu labels)                  |
+| A boxed section                            | `Card`                                                                         |
+| A number on a dashboard                    | `StatCard`                                                                     |
+| Any list of records                        | `DataTable` (sorting, paging, loading, empty, error, mobile cards built in)    |
+| A status (OPEN, PAID, ALERT…)              | `StatusBadge`. Add new statuses to `src/utils/status.ts`                       |
+| Buttons                                    | `Button` with `variant` (`primary`, `secondary`, `danger`, `ghost`) and `size` |
+| Form inputs                                | `FormInput`, `FormSelect`, `FormTextarea` (label, hint and error wired up)     |
+| Search box                                 | `SearchBar` + `useDebouncedValue`                                              |
+| Pop-up forms / questions                   | `Modal`, `ConfirmDialog`                                                       |
+| "Saved" / "Failed" feedback                | `useToast()` for short messages, `Alert` for messages that should stay         |
+| Nothing to show / failed to load / loading | `EmptyState`, `ErrorState`, `LoadingSkeleton`                                  |
+| Money and dates                            | `formatCurrency`, `formatDate`, `formatRelative` in `src/utils/format.ts`      |
+
+The shell lives in `src/layouts/`: `AppLayout` (sidebar on large screens, slide-in menu below 1024px), `Topbar` (notification bell, account menu) and `SidebarNav`, which reads the same role-aware config as the routes.
 
 ## Scripts
 

@@ -8,6 +8,8 @@ import RegisterPage from '../pages/RegisterPage'
 import SectionPlaceholder from '../pages/SectionPlaceholder'
 import StaffDashboardPage from '../pages/staff/StaffDashboardPage'
 import UsersPage from '../pages/staff/UsersPage'
+import UiKitPage from '../pages/dev/UiKitPage'
+import { isDev } from '../utils/env'
 import { STAFF_ROLES } from '../types/user'
 import GuestRoute from './GuestRoute'
 import { CUSTOMER_NAV, STAFF_NAV, type NavItem } from './navigation'
@@ -53,6 +55,15 @@ export default function AppRoutes() {
       <Route element={<ProtectedRoute roles={['customer']} />}>
         <Route element={<AppLayout />}>{guardedRoutes(CUSTOMER_NAV)}</Route>
       </Route>
+
+      {/* Development-only component catalogue */}
+      {isDev && (
+        <Route element={<ProtectedRoute />}>
+          <Route element={<AppLayout />}>
+            <Route path="/ui-kit" element={<UiKitPage />} />
+          </Route>
+        </Route>
+      )}
 
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
