@@ -8,7 +8,7 @@
  */
 import {
   collection,
-  getDocs,
+  getDocsFromServer,
   limit,
   orderBy,
   query,
@@ -259,7 +259,9 @@ const toDate = (value: unknown): Date =>
     : new Date(0)
 
 async function rows<T>(q: Query): Promise<(T & { id: string })[]> {
-  const snap = await getDocs(q)
+  // From the server, never the offline cache: an unreachable server must show an
+  // error, not an empty "no recent activity" list.
+  const snap = await getDocsFromServer(q)
   return snap.docs.map((d) => ({ ...(d.data() as T), id: d.id }))
 }
 
