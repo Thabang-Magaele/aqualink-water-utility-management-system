@@ -64,3 +64,12 @@ export function initials(name: string | null | undefined): string {
     '?'
   )
 }
+
+/** "0821234567" → "082 123 4567"; other formats are returned unchanged. */
+export function formatPhone(phone: string): string {
+  const digits = phone.replace(/\s/g, '')
+  const local = /^\+27\d{9}$/.test(digits) ? `0${digits.slice(3)}` : digits
+  return /^0\d{9}$/.test(local)
+    ? `${local.slice(0, 3)} ${local.slice(3, 6)} ${local.slice(6)}`
+    : phone
+}

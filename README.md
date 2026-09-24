@@ -2,7 +2,7 @@
 
 AquaLink is a web-based MVP for **Silulumanzi**: a Customer Portal (accounts, bills, usage, leak reports) and a role-based Staff Console (call centre, technicians, billing, assets, water quality, communications), built on React and Firebase.
 
-> Status: **Phase 6: staff dashboard.** One role-aware dashboard with live figures and recent activity.
+> Status: **Phase 7: customer management.** Staff search customers and accounts and open a customer to see accounts, meters, balances, bills, payments and tickets (by role).
 
 ## Tech stack
 
@@ -131,6 +131,13 @@ Figures load independently: a failing or not-yet-indexed query shows a message o
 | `npm run test:watch`  | Same, re-running on save                                                                  |
 | `npm run check:rules` | Static checks on `firestore.rules`                                                        |
 | `npm run test:rules`  | Every `tests/rules/*.test.ts` against the Firestore emulator                              |
+
+## Customer management (Phase 7)
+
+- **Customers** (`/staff/customers`) and **Accounts** (`/staff/accounts`): search by name, account number, phone (any format, e.g. `082 123 4567` or `+27 82…`), email or address; filter by area, status or "owes money".
+- **Customer page** (`/staff/customers/:id`): contact details, each account with its meter and last reading, and history sections that follow the security rules. The call centre sees invoices and tickets and can edit contact details; billing sees invoices and payments; admin sees everything.
+- Queries live in `src/services/customerQueries.ts`; `tests/rules/customers.test.ts` runs the same queries as every role to prove the page and the rules agree.
+- **Search limit:** Firestore has no full-text search, so the directory loads up to 500 customers and 500 accounts and filters in the browser. That is instant at MVP scale. Beyond it, add a `searchKeywords` array per customer (queried with `array-contains`) or a search service such as Algolia or Typesense.
 
 ## Scripts
 

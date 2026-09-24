@@ -95,20 +95,24 @@ export default function DataTable<T>({
   }
 
   const clickable = Boolean(onRowClick)
-  const rowProps = (row: T) =>
-    clickable
-      ? {
-          onClick: () => onRowClick!(row),
-          onKeyDown: (e: React.KeyboardEvent) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault()
-              onRowClick!(row)
-            }
-          },
-          tabIndex: 0,
-          role: 'link' as const,
-        }
-      : {}
+  // Mouse users can click anywhere on the row. Keyboard and screen-reader users get
+  // a real button in the first cell, so rows keep their table semantics.
+  const rowProps = (row: T) => (clickable ? { onClick: () => onRowClick!(row) } : {})
+  const primaryCell = (row: T, content: ReactNode) =>
+    clickable ? (
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation()
+          onRowClick!(row)
+        }}
+        className="rounded text-left font-[inherit] hover:underline"
+      >
+        {content}
+      </button>
+    ) : (
+      content
+    )
 
   const [primary, ...rest] = columns
 
@@ -174,15 +178,15 @@ export default function DataTable<T>({
                     key={getRowId(row)}
                     {...rowProps(row)}
                     className={
-                      clickable ? 'hover:bg-paper focus-visible:bg-paper cursor-pointer' : ''
+                      clickable ? 'hover:bg-paper focus-within:bg-paper cursor-pointer' : ''
                     }
                   >
-                    {columns.map((c) => (
+                    {columns.map((c, index) => (
                       <td
                         key={c.key}
                         className={`px-4 py-3 align-middle ${c.align === 'right' ? 'text-right tabular-nums' : ''} ${c.className ?? ''}`}
                       >
-                        {c.render(row)}
+                        {index === 0 ? primaryCell(row, c.render(row)) : c.render(row)}
                       </td>
                     ))}
                   </tr>
@@ -206,7 +210,7 @@ export default function DataTable<T>({
                 {...rowProps(row)}
                 className={`px-4 py-3.5 ${clickable ? 'active:bg-paper cursor-pointer' : ''}`}
               >
-                <div className="font-semibold">{primary.render(row)}</div>
+                <div className="font-semibold">{primaryCell(row, primary.render(row))}</div>
                 <dl className="mt-1.5 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
                   {rest
                     .filter((c) => !c.hideOnMobile)

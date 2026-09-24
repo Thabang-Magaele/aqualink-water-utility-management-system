@@ -162,10 +162,18 @@ export function homePathFor(role: Role | null): string {
   return role === 'customer' ? '/customer' : '/staff'
 }
 
-/** True if `path` is a menu page this role may open. */
+/**
+ * True if `path` is a menu page this role may open, or a page beneath one
+ * (e.g. /staff/customers/abc belongs to /staff/customers).
+ */
 export function canOpen(role: Role | null, path: string): boolean {
   if (!role) return false
-  const item = [...STAFF_NAV, ...CUSTOMER_NAV].find((i) => i.path === path)
+  const items = [...STAFF_NAV, ...CUSTOMER_NAV]
+  const item =
+    items.find((i) => i.path === path) ??
+    items
+      .filter((i) => i.path !== '/staff' && i.path !== '/customer' && path.startsWith(`${i.path}/`))
+      .sort((a, b) => b.path.length - a.path.length)[0]
   return Boolean(item?.roles.includes(role))
 }
 

@@ -8,6 +8,9 @@ import RegisterPage from '../pages/RegisterPage'
 import SectionPlaceholder from '../pages/SectionPlaceholder'
 import StaffDashboardPage from '../pages/staff/StaffDashboardPage'
 import UsersPage from '../pages/staff/UsersPage'
+import AccountsPage from '../pages/staff/AccountsPage'
+import CustomerDetailPage from '../pages/staff/customers/CustomerDetailPage'
+import CustomersPage from '../pages/staff/customers/CustomersPage'
 import UiKitPage from '../pages/dev/UiKitPage'
 import { isDev } from '../utils/env'
 import { STAFF_ROLES } from '../types/user'
@@ -20,7 +23,14 @@ import RoleHomeRedirect from './RoleHomeRedirect'
 const PAGES: Record<string, ReactElement> = {
   '/staff': <StaffDashboardPage />,
   '/staff/users': <UsersPage />,
+  '/staff/customers': <CustomersPage />,
+  '/staff/accounts': <AccountsPage />,
   '/customer': <CustomerDashboardPage />,
+}
+
+/** Roles of a menu item, reused for its detail pages. */
+function rolesOf(path: string) {
+  return STAFF_NAV.find((i) => i.path === path)?.roles ?? []
 }
 
 /** Each nav item becomes a route guarded by the same roles that show it in the menu. */
@@ -48,7 +58,13 @@ export default function AppRoutes() {
 
       {/* Staff console: any staff role, then per-section roles */}
       <Route element={<ProtectedRoute roles={STAFF_ROLES} />}>
-        <Route element={<AppLayout />}>{guardedRoutes(STAFF_NAV)}</Route>
+        <Route element={<AppLayout />}>
+          {guardedRoutes(STAFF_NAV)}
+          {/* Detail pages share the roles of their parent menu item */}
+          <Route element={<ProtectedRoute roles={rolesOf('/staff/customers')} />}>
+            <Route path="/staff/customers/:customerId" element={<CustomerDetailPage />} />
+          </Route>
+        </Route>
       </Route>
 
       {/* Customer portal */}
