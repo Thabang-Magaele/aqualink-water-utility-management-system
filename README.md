@@ -2,7 +2,7 @@
 
 AquaLink is a web-based MVP for **Silulumanzi**: a Customer Portal (accounts, bills, usage, leak reports) and a role-based Staff Console (call centre, technicians, billing, assets, water quality, communications), built on React and Firebase.
 
-> Status: **Phase 7: customer management.** Staff search customers and accounts and open a customer to see accounts, meters, balances, bills, payments and tickets (by role).
+> Status: **Phase 8: leak and outage workflow.** Customers report problems; the call centre assigns technicians; technicians start and resolve jobs; everyone is notified; every change is recorded in the ticket history.
 
 ## Tech stack
 
@@ -138,6 +138,20 @@ Figures load independently: a failing or not-yet-indexed query shows a message o
 - **Customer page** (`/staff/customers/:id`): contact details, each account with its meter and last reading, and history sections that follow the security rules. The call centre sees invoices and tickets and can edit contact details; billing sees invoices and payments; admin sees everything.
 - Queries live in `src/services/customerQueries.ts`; `tests/rules/customers.test.ts` runs the same queries as every role to prove the page and the rules agree.
 - **Search limit:** Firestore has no full-text search, so the directory loads up to 500 customers and 500 accounts and filters in the browser. That is instant at MVP scale. Beyond it, add a `searchKeywords` array per customer (queried with `array-contains`) or a search service such as Algolia or Typesense.
+
+## Ticket workflow (Phase 8)
+
+```text
+Customer reports ─▶ Call centre assigns ─▶ Technician starts ─▶ Technician resolves ─▶ Customer sees "Resolved"
+   /customer/report     /staff/tickets/:id     /staff/field/:id      (note required)        /customer/tickets/:id
+```
+
+- **Every action is data first.** `src/services/ticketActions.ts` builds exactly what each action writes: the ticket fields plus a history entry, saved together in one batch. `ticketPermissions()` decides which buttons each role sees.
+- **The page never offers an action the rules refuse.** `tests/rules/tickets.test.ts` performs every offered action, for every role and ticket state, with those exact payloads.
+- **Live updates.** The queue, job lists, ticket pages and the notification bell use Firestore listeners, so nobody needs to refresh.
+- **Notifications** come from the `onTicketWritten` Cloud Function (`functions/src/triggers/`). The decision logic is `functions/src/shared/ticketEvents.ts`, unit-tested in `tests/functions/`. Customers hear about receipt, assignment, work starting, escalation and resolution; technicians about new jobs; the call centre and admins about new reports.
+
+**One-time setup for the trigger:** Firestore triggers must run in your database's region. Copy `functions/.env.example` to `functions/.env` and set `FIRESTORE_REGION` (see the comments in that file), then run `firebase deploy --only functions`.
 
 ## Scripts
 

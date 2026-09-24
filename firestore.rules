@@ -109,7 +109,10 @@ service cloud.firestore {
         return isRequiredText(d.displayName, 100) && isText(d.phone, 20);
       }
 
-      allow read: if (signedIn() && uid() == userId) || isAdmin();
+      // Own profile; admins read all; the call centre may list technicians to assign jobs.
+      allow read: if (signedIn() && uid() == userId)
+        || isAdmin()
+        || (hasRole(['call_centre']) && resource.data.role == 'technician');
 
       // Self-registration: own doc only, role can ONLY be "customer".
       allow create: if signedIn() && uid() == userId

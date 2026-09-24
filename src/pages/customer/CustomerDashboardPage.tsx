@@ -1,3 +1,5 @@
+import { Ticket, TriangleAlert } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import Card from '../../components/Card'
 import PageHeader from '../../components/PageHeader'
 import { useAuth } from '../../hooks/useAuth'
@@ -14,6 +16,30 @@ export default function CustomerDashboardPage() {
         title={`Welcome, ${profile?.displayName || user?.displayName || user?.email}`}
         description="Your account summary, bills and usage will appear here."
       />
+      <section aria-label="Quick actions" className="mb-6 grid max-w-2xl gap-3 sm:grid-cols-2">
+        <Link
+          to="/customer/report"
+          className="bg-reservoir hover:bg-reservoir-deep flex items-center gap-3 rounded-lg px-5 py-4 font-semibold text-white shadow-xs"
+        >
+          <TriangleAlert className="size-5" aria-hidden="true" />
+          <span>
+            Report a problem
+            <span className="text-mist/85 block text-sm font-normal">
+              Leak, burst pipe or no water
+            </span>
+          </span>
+        </Link>
+        <Link
+          to="/customer/tickets"
+          className="border-mist hover:border-channel flex items-center gap-3 rounded-lg border bg-white px-5 py-4 font-semibold shadow-xs"
+        >
+          <Ticket className="text-reservoir size-5" aria-hidden="true" />
+          <span>
+            My tickets
+            <span className="text-ink/60 block text-sm font-normal">Follow your reports</span>
+          </span>
+        </Link>
+      </section>
       <Card title="Your details" className="max-w-2xl" padded={false}>
         <dl className="divide-mist divide-y">
           <Row label="Email" value={user?.email} />

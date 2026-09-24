@@ -11,6 +11,12 @@ import UsersPage from '../pages/staff/UsersPage'
 import AccountsPage from '../pages/staff/AccountsPage'
 import CustomerDetailPage from '../pages/staff/customers/CustomerDetailPage'
 import CustomersPage from '../pages/staff/customers/CustomersPage'
+import FieldJobsPage from '../pages/staff/tickets/FieldJobsPage'
+import TicketDetailPage from '../pages/staff/tickets/TicketDetailPage'
+import TicketQueuePage from '../pages/staff/tickets/TicketQueuePage'
+import CustomerTicketPage from '../pages/customer/CustomerTicketPage'
+import MyTicketsPage from '../pages/customer/MyTicketsPage'
+import ReportIssuePage from '../pages/customer/ReportIssuePage'
 import UiKitPage from '../pages/dev/UiKitPage'
 import { isDev } from '../utils/env'
 import { STAFF_ROLES } from '../types/user'
@@ -25,6 +31,10 @@ const PAGES: Record<string, ReactElement> = {
   '/staff/users': <UsersPage />,
   '/staff/customers': <CustomersPage />,
   '/staff/accounts': <AccountsPage />,
+  '/staff/tickets': <TicketQueuePage />,
+  '/staff/field': <FieldJobsPage />,
+  '/customer/report': <ReportIssuePage />,
+  '/customer/tickets': <MyTicketsPage />,
   '/customer': <CustomerDashboardPage />,
 }
 
@@ -64,12 +74,27 @@ export default function AppRoutes() {
           <Route element={<ProtectedRoute roles={rolesOf('/staff/customers')} />}>
             <Route path="/staff/customers/:customerId" element={<CustomerDetailPage />} />
           </Route>
+          <Route element={<ProtectedRoute roles={rolesOf('/staff/tickets')} />}>
+            <Route
+              path="/staff/tickets/:ticketId"
+              element={<TicketDetailPage section="/staff/tickets" />}
+            />
+          </Route>
+          <Route element={<ProtectedRoute roles={rolesOf('/staff/field')} />}>
+            <Route
+              path="/staff/field/:ticketId"
+              element={<TicketDetailPage section="/staff/field" />}
+            />
+          </Route>
         </Route>
       </Route>
 
       {/* Customer portal */}
       <Route element={<ProtectedRoute roles={['customer']} />}>
-        <Route element={<AppLayout />}>{guardedRoutes(CUSTOMER_NAV)}</Route>
+        <Route element={<AppLayout />}>
+          {guardedRoutes(CUSTOMER_NAV)}
+          <Route path="/customer/tickets/:ticketId" element={<CustomerTicketPage />} />
+        </Route>
       </Route>
 
       {/* Development-only component catalogue */}

@@ -18,6 +18,8 @@ import { onRequest } from 'firebase-functions/v2/https'
 import { setUserRole } from './routes/setUserRole'
 import { authenticate, HttpError, sendError, sendSuccess, type Handler } from './shared/http'
 
+export { onTicketWritten } from './triggers/onTicketWritten'
+
 initializeApp()
 
 // Keep in sync with FUNCTIONS_REGION in src/services/firebase.ts

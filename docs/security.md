@@ -22,21 +22,21 @@ the React app. Hiding a menu item is convenience; the rules are what actually st
 R = read, W = create/update (with the checks above), – = no access. "own" = records whose
 `customerId`/`userId` is the signed-in user.
 
-| Collection        | Customer             | Call centre | Technician            | Billing                 | Asset mgr     | Water quality | Comms | Admin                   |
-| ----------------- | -------------------- | ----------- | --------------------- | ----------------------- | ------------- | ------------- | ----- | ----------------------- |
-| users             | R/W own name & phone | –           | –                     | –                       | –             | –             | –     | R all                   |
-| customers         | R own, W own phone   | R W         | –                     | R, link accounts        | –             | –             | –     | R W                     |
-| accounts          | R own                | R           | –                     | R W                     | –             | –             | –     | R W                     |
-| meters, readings  | R own                | R           | –                     | R W                     | –             | –             | –     | R W                     |
-| invoices          | R own                | R           | –                     | R, create, mark overdue | –             | –             | –     | R, create, mark overdue |
-| payments          | R own                | –           | –                     | R                       | –             | –             | –     | R                       |
-| tickets           | R own, report        | R W         | R/W assigned (status) | –                       | R, link asset | –             | –     | R W                     |
-| ticket history    | R own, add notes     | R, add      | R/add assigned        | –                       | R             | –             | –     | R, add                  |
-| assets            | –                    | R           | R                     | R                       | R W           | R             | R     | R W                     |
-| waterQualityTests | –                    | –           | –                     | –                       | R             | R W           | –     | R W                     |
-| outageNotices     | R                    | R           | R                     | R                       | R             | R             | R W   | R W                     |
-| notifications     | R own, mark read     | own         | own                   | own                     | own           | own           | own   | own                     |
-| auditLogs         | –                    | –           | –                     | –                       | –             | –             | –     | R                       |
+| Collection        | Customer             | Call centre                    | Technician            | Billing                 | Asset mgr     | Water quality | Comms | Admin                   |
+| ----------------- | -------------------- | ------------------------------ | --------------------- | ----------------------- | ------------- | ------------- | ----- | ----------------------- |
+| users             | R/W own name & phone | R technicians (to assign jobs) | –                     | –                       | –             | –             | –     | R all                   |
+| customers         | R own, W own phone   | R W                            | –                     | R, link accounts        | –             | –             | –     | R W                     |
+| accounts          | R own                | R                              | –                     | R W                     | –             | –             | –     | R W                     |
+| meters, readings  | R own                | R                              | –                     | R W                     | –             | –             | –     | R W                     |
+| invoices          | R own                | R                              | –                     | R, create, mark overdue | –             | –             | –     | R, create, mark overdue |
+| payments          | R own                | –                              | –                     | R                       | –             | –             | –     | R                       |
+| tickets           | R own, report        | R W                            | R/W assigned (status) | –                       | R, link asset | –             | –     | R W                     |
+| ticket history    | R own, add notes     | R, add                         | R/add assigned        | –                       | R             | –             | –     | R, add                  |
+| assets            | –                    | R                              | R                     | R                       | R W           | R             | R     | R W                     |
+| waterQualityTests | –                    | –                              | –                     | –                       | R             | R W           | –     | R W                     |
+| outageNotices     | R                    | R                              | R                     | R                       | R             | R             | R W   | R W                     |
+| notifications     | R own, mark read     | own                            | own                   | own                     | own           | own           | own   | own                     |
+| auditLogs         | –                    | –                              | –                     | –                       | –             | –             | –     | R                       |
 
 ## Server-only writes
 
@@ -44,7 +44,7 @@ These can't be written from the browser by anyone, including admins. They are cr
 or the Admin SDK, which bypass the rules:
 
 - **payments**, and marking an invoice **PAID** (the payment function, Phase 11)
-- **notifications** (Phase 12)
+- **notifications**: created by the `onTicketWritten` Cloud Function trigger (Phase 8); more triggers in Phase 12
 - **auditLogs** (Phase 18)
 - **roles** (custom claims, via `setUserRole`)
 
