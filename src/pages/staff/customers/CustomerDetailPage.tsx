@@ -12,6 +12,7 @@ import PageHeader from '../../../components/PageHeader'
 import StatCard from '../../../components/StatCard'
 import StatusBadge from '../../../components/StatusBadge'
 import { useAsync } from '../../../hooks/useAsync'
+import { canOpen } from '../../../routes/navigation'
 import { useAuth } from '../../../hooks/useAuth'
 import { customerSectionsFor } from '../../../services/customerQueries'
 import {
@@ -202,6 +203,7 @@ export default function CustomerDetailPage() {
                   account={a}
                   meter={detail.data?.meters.find((m) => m.id === a.meterId)}
                   highlighted={a.id === focusAccountId}
+                  meterLink={canOpen(role, '/staff/meters')}
                 />
               ))}
             </ul>
@@ -292,10 +294,13 @@ function AccountItem({
   account,
   meter,
   highlighted,
+  meterLink,
 }: {
   account: Account
   meter?: Meter
   highlighted: boolean
+  /** Link the meter number to its page (roles that can open Meters). */
+  meterLink: boolean
 }) {
   return (
     <li
@@ -319,7 +324,16 @@ function AccountItem({
         <Gauge className="text-ink/50 size-4" aria-hidden="true" />
         {meter ? (
           <>
-            <span className="font-mono">{meter.meterNumber}</span>
+            {meterLink ? (
+              <Link
+                to={`/staff/meters/${meter.id}`}
+                className="text-channel font-mono font-semibold hover:underline"
+              >
+                {meter.meterNumber}
+              </Link>
+            ) : (
+              <span className="font-mono">{meter.meterNumber}</span>
+            )}
             <StatusBadge status={meter.status} />
             <span>
               Last reading {formatNumber(meter.lastReading)} kL

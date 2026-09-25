@@ -9,6 +9,9 @@ import SectionPlaceholder from '../pages/SectionPlaceholder'
 import StaffDashboardPage from '../pages/staff/StaffDashboardPage'
 import UsersPage from '../pages/staff/UsersPage'
 import AccountsPage from '../pages/staff/AccountsPage'
+import MeterDetailPage from '../pages/staff/meters/MeterDetailPage'
+import MetersPage from '../pages/staff/meters/MetersPage'
+import UsagePage from '../pages/customer/UsagePage'
 import CustomerDetailPage from '../pages/staff/customers/CustomerDetailPage'
 import CustomersPage from '../pages/staff/customers/CustomersPage'
 import FieldJobsPage from '../pages/staff/tickets/FieldJobsPage'
@@ -31,6 +34,8 @@ const PAGES: Record<string, ReactElement> = {
   '/staff/users': <UsersPage />,
   '/staff/customers': <CustomersPage />,
   '/staff/accounts': <AccountsPage />,
+  '/staff/meters': <MetersPage />,
+  '/customer/usage': <UsagePage />,
   '/staff/tickets': <TicketQueuePage />,
   '/staff/field': <FieldJobsPage />,
   '/customer/report': <ReportIssuePage />,
@@ -71,6 +76,9 @@ export default function AppRoutes() {
         <Route element={<AppLayout />}>
           {guardedRoutes(STAFF_NAV)}
           {/* Detail pages share the roles of their parent menu item */}
+          <Route element={<ProtectedRoute roles={rolesOf('/staff/meters')} />}>
+            <Route path="/staff/meters/:meterId" element={<MeterDetailPage />} />
+          </Route>
           <Route element={<ProtectedRoute roles={rolesOf('/staff/customers')} />}>
             <Route path="/staff/customers/:customerId" element={<CustomerDetailPage />} />
           </Route>

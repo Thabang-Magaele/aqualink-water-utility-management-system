@@ -73,3 +73,13 @@ export function formatPhone(phone: string): string {
     ? `${local.slice(0, 3)} ${local.slice(3, 6)} ${local.slice(6)}`
     : phone
 }
+
+/** "Aug 2026" for charts and period labels. */
+export function formatMonth(date: Date): string {
+  return date.toLocaleDateString('en-ZA', { month: 'short', year: 'numeric' })
+}
+
+/** "15.2 kL" (one decimal, grouped thousands). */
+export function formatKl(value: number): string {
+  return `${new Intl.NumberFormat('en-ZA', { maximumFractionDigits: 1, minimumFractionDigits: 1 }).format(value)} kL`
+}

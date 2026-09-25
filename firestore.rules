@@ -240,6 +240,9 @@ service cloud.firestore {
         && validMeter(incoming())
         && unchanged(['meterNumber', 'accountId', 'customerId', 'createdAt'])
         && (incoming().lastReading >= existing().lastReading || isAdmin())
+        && (existing().lastReadingDate == null
+            || (incoming().lastReadingDate != null && incoming().lastReadingDate >= existing().lastReadingDate)
+            || isAdmin())
         && isNow(incoming().updatedAt);
 
       allow delete: if isAdmin();
@@ -262,7 +265,9 @@ service cloud.firestore {
           // Must match the meter it's recorded against, and can't be below its last value
           && meterOf(d).accountId == d.accountId
           && meterOf(d).customerId == d.customerId
-          && d.readingValue >= meterOf(d).lastReading;
+          && d.readingValue >= meterOf(d).lastReading
+          // ...and can't be dated before the meter's last reading (keeps periods in order)
+          && (meterOf(d).lastReadingDate == null || d.readingDate >= meterOf(d).lastReadingDate);
       }
 
       allow read: if ownsRecord() || hasRole(['admin', 'call_centre', 'billing']);

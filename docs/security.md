@@ -11,7 +11,7 @@ the React app. Hiding a menu item is convenience; the rules are what actually st
    (areas, statuses, types), and server timestamps (`serverTimestamp()`) so records can't be back-dated.
    Some fields can never change after creation (a ticket's customer, an account's number…).
 3. **Links:** cross-document checks, for example:
-   - a meter reading must match its meter's account and customer, and can't be lower than the last reading;
+   - a meter reading must match its meter's account and customer, can't be lower than the last reading, and can't be dated before it (the meter's last-reading date never moves backwards);
    - an invoice's consumption and amount must equal the readings × tariff;
    - a customer can only report a ticket against their own account;
    - tickets can only be assigned to users whose role is `technician`;

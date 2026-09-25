@@ -2,7 +2,7 @@
 
 AquaLink is a web-based MVP for **Silulumanzi**: a Customer Portal (accounts, bills, usage, leak reports) and a role-based Staff Console (call centre, technicians, billing, assets, water quality, communications), built on React and Firebase.
 
-> Status: **Phase 8: leak and outage workflow.** Customers report problems; the call centre assigns technicians; technicians start and resolve jobs; everyone is notified; every change is recorded in the ticket history.
+> Status: **Phase 9: meter readings and consumption.** Billing records readings with mistake checks; staff and customers see consumption per period as charts and tables.
 
 ## Tech stack
 
@@ -154,6 +154,14 @@ Customer reports ─▶ Call centre assigns ─▶ Technician starts ─▶ Tech
 **Offline behaviour:** live lists and pages (`src/services/live.ts`) never treat an empty offline cache as "no data". If the server hasn't answered within 10 seconds they show an offline message, and stay subscribed so data appears as soon as the connection returns.
 
 **One-time setup for the trigger:** Firestore triggers must run in your database's region. Copy `functions/.env.example` to `functions/.env` and set `FIRESTORE_REGION` (see the comments in that file), then run `firebase deploy --only functions`.
+
+## Meter readings and consumption (Phase 9)
+
+- **Meters** (`/staff/meters`, billing and admin): every meter with its account, last reading, and a **Due** flag for active meters not read in over 35 days. **Add meter** installs a meter on an account that has none (meter → account) and records the installation value as the baseline reading.
+- **Meter page** (`/staff/meters/:id`): consumption chart, reading history with _used = current − previous_, days and litres per day, and **Record a reading**. The form refuses values below the last reading or dates in the future or before the last reading, and asks for confirmation when use is 3× normal or more (usually a misread digit). Meter status (active, faulty, removed) is changed here.
+- **Usage** (`/customer/usage`): each property's last period, monthly average, comparison with average ("check for leaks" when it's well above), chart and history.
+- Maths in `src/utils/consumption.ts` (unit-tested); queries and write payloads in `src/services/meterQueries.ts`, checked against the rules as each role by `tests/rules/meters.test.ts`.
+- **Replacing a meter** (moving an account to a new meter) is not in this MVP.
 
 ## Scripts
 

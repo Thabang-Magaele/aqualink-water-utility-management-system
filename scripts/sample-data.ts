@@ -60,13 +60,18 @@ export function buildSampleData(ids: SampleIds = {}, now = new Date()): SeedDoc[
     docs.push({ path, data: data as Record<string, unknown> })
 
   const day = 86_400_000
+  // "Today" events happen at up to 09:00. Before 10:00 the timeline is anchored on
+  // yesterday, so nothing is dated in the future and the order of events is kept.
+  const anchor = now.getHours() < 10 ? new Date(now.getTime() - day) : now
   const daysAgo = (n: number, hour = 9) => {
-    const d = new Date(now.getTime() - n * day)
+    const d = new Date(anchor.getTime() - n * day)
     d.setHours(hour, 0, 0, 0)
     return d
   }
   /** Meter-reading day: the 25th, counting back from the most recent 25th that has already passed. */
-  const lastReadMonthOffset = now.getDate() >= 25 ? 0 : 1
+  // This month's reading day only counts once it has actually happened (25th, 10:00);
+  // otherwise the newest reading would be dated in the future.
+  const lastReadMonthOffset = new Date(now.getFullYear(), now.getMonth(), 25, 10) <= now ? 0 : 1
   const monthDay = (monthsAgo: number) =>
     new Date(now.getFullYear(), now.getMonth() - monthsAgo - lastReadMonthOffset, 25, 10)
 

@@ -71,6 +71,7 @@ describe('CustomerDetailPage', () => {
 
   it('call centre: sees invoices and tickets, not payments, and counts open tickets', async () => {
     renderAs('call_centre')
+    expect(await screen.findByText('MTR-223107')).not.toHaveAttribute('href') // Meters is billing/admin only
     expect(await screen.findByRole('table', { name: 'Tickets' })).toBeInTheDocument()
     expect(screen.getByRole('table', { name: 'Invoices' })).toBeInTheDocument()
     expect(screen.queryByRole('table', { name: 'Payments' })).not.toBeInTheDocument()
@@ -88,6 +89,10 @@ describe('CustomerDetailPage', () => {
     expect(screen.queryByRole('table', { name: 'Tickets' })).not.toBeInTheDocument()
     expect(service.loadCustomerTickets).not.toHaveBeenCalled()
     expect(screen.queryByRole('button', { name: 'Edit details' })).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'MTR-223107' })).toHaveAttribute(
+      'href',
+      '/staff/meters/m1',
+    )
   })
 
   it('highlights the account opened from the Accounts list', async () => {
