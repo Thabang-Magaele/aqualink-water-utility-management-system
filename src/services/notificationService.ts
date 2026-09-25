@@ -9,10 +9,12 @@ import {
   updateDoc,
   where,
   writeBatch,
+  type QuerySnapshot,
 } from 'firebase/firestore'
 import type { Subscribe } from '../hooks/useSubscription'
 import type { Notification } from '../types/models'
 import { db } from './firebase'
+import { serverConfirmed } from './live'
 
 export const BELL_LIMIT = 15
 
@@ -23,17 +25,15 @@ export function subscribeMyNotifications(uid: string): Subscribe<Notification[]>
     orderBy('createdAt', 'desc'),
     limit(BELL_LIMIT),
   )
-  return (onData, onError) =>
-    onSnapshot(
-      q,
-      (snap) =>
-        onData(
-          snap.docs.map(
-            (d) => ({ id: d.id, ...d.data({ serverTimestamps: 'estimate' }) }) as Notification,
-          ),
-        ),
-      onError,
-    )
+  // Offline, an empty cache must not read as "You're all caught up".
+  return serverConfirmed<QuerySnapshot, Notification[]>(
+    (next, fail) => onSnapshot(q, { includeMetadataChanges: true }, next, fail),
+    (snap) => snap.empty,
+    (snap) =>
+      snap.docs.map(
+        (d) => ({ id: d.id, ...d.data({ serverTimestamps: 'estimate' }) }) as Notification,
+      ),
+  )
 }
 
 export function markNotificationRead(id: string): Promise<void> {

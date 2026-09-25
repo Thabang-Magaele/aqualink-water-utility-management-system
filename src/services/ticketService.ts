@@ -13,10 +13,12 @@ import {
   doc,
   type DocumentSnapshot,
   type Query,
+  type QuerySnapshot,
 } from 'firebase/firestore'
 import type { Subscribe } from '../hooks/useSubscription'
 import type { Account, Asset, Customer, Ticket, TicketHistoryEntry } from '../types/models'
 import { newTicket, type Actor, type NewTicketInput, type TicketChange } from './ticketActions'
+import { serverConfirmed } from './live'
 import { ticketQueries } from './ticketQueries'
 import { db } from './firebase'
 
@@ -26,8 +28,11 @@ const read = <T>(snap: DocumentSnapshot) =>
   ({ id: snap.id, ...snap.data({ serverTimestamps: 'estimate' }) }) as T
 
 function liveList<T>(q: Query): Subscribe<T[]> {
-  return (onData, onError) =>
-    onSnapshot(q, (snap) => onData(snap.docs.map((d) => read<T>(d))), onError)
+  return serverConfirmed<QuerySnapshot, T[]>(
+    (next, fail) => onSnapshot(q, { includeMetadataChanges: true }, next, fail),
+    (snap) => snap.empty,
+    (snap) => snap.docs.map((d) => read<T>(d)),
+  )
 }
 
 export const subscribeQueue = liveList<Ticket>(ticketQueries.queue(db))
@@ -40,12 +45,13 @@ export const subscribeHistory = (ticketId: string) =>
 
 /** The ticket, or null if it doesn't exist (or was deleted). */
 export function subscribeTicket(ticketId: string): Subscribe<Ticket | null> {
-  return (onData, onError) =>
-    onSnapshot(
-      ticketQueries.ticket(db, ticketId),
-      (snap) => onData(snap.exists() ? read<Ticket>(snap) : null),
-      onError,
-    )
+  return serverConfirmed<DocumentSnapshot, Ticket | null>(
+    (next, fail) =>
+      onSnapshot(ticketQueries.ticket(db, ticketId), { includeMetadataChanges: true }, next, fail),
+    // A missing document from the cache only means "not cached"; wait for the server.
+    (snap) => !snap.exists(),
+    (snap) => (snap.exists() ? read<Ticket>(snap) : null),
+  )
 }
 
 /** Creates the ticket and its first history entry together. Returns the new ticket's id. */

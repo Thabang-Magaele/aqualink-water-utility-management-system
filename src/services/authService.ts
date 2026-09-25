@@ -8,10 +8,18 @@ import {
   updateProfile,
   type User,
 } from 'firebase/auth'
-import { doc, onSnapshot, serverTimestamp, setDoc, type Unsubscribe } from 'firebase/firestore'
+import {
+  doc,
+  onSnapshot,
+  serverTimestamp,
+  setDoc,
+  type DocumentSnapshot,
+  type Unsubscribe,
+} from 'firebase/firestore'
 import { isRole, type Role, type UserProfile } from '../types/user'
 import { normalisePhone } from '../utils/validation'
 import { auth, db } from './firebase'
+import { serverConfirmed } from './live'
 
 export async function signIn(email: string, password: string): Promise<void> {
   await signInWithEmailAndPassword(auth, email.trim(), password)
@@ -62,9 +70,10 @@ export function subscribeToProfile(
   onChange: (profile: UserProfile | null) => void,
   onError: (error: Error) => void,
 ): Unsubscribe {
-  return onSnapshot(
-    doc(db, 'users', uid),
-    (snap) => onChange(snap.exists() ? (snap.data() as UserProfile) : null),
-    onError,
-  )
+  // Offline, a profile missing from the cache means "not loaded yet", not "no profile".
+  return serverConfirmed<DocumentSnapshot, UserProfile | null>(
+    (next, fail) => onSnapshot(doc(db, 'users', uid), { includeMetadataChanges: true }, next, fail),
+    (snap) => !snap.exists(),
+    (snap) => (snap.exists() ? (snap.data() as UserProfile) : null),
+  )(onChange, (error) => onError(error as Error))
 }

@@ -151,6 +151,8 @@ Customer reports ─▶ Call centre assigns ─▶ Technician starts ─▶ Tech
 - **Live updates.** The queue, job lists, ticket pages and the notification bell use Firestore listeners, so nobody needs to refresh.
 - **Notifications** come from the `onTicketWritten` Cloud Function (`functions/src/triggers/`). The decision logic is `functions/src/shared/ticketEvents.ts`, unit-tested in `tests/functions/`. Customers hear about receipt, assignment, work starting, escalation and resolution; technicians about new jobs; the call centre and admins about new reports.
 
+**Offline behaviour:** live lists and pages (`src/services/live.ts`) never treat an empty offline cache as "no data". If the server hasn't answered within 10 seconds they show an offline message, and stay subscribed so data appears as soon as the connection returns.
+
 **One-time setup for the trigger:** Firestore triggers must run in your database's region. Copy `functions/.env.example` to `functions/.env` and set `FIRESTORE_REGION` (see the comments in that file), then run `firebase deploy --only functions`.
 
 ## Scripts
