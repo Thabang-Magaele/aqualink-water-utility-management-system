@@ -1,7 +1,5 @@
 import type { ReactNode } from 'react'
-import ConnectionStatus from '../components/ConnectionStatus'
 import GaugeMotif from '../components/GaugeMotif'
-import { isDev } from '../utils/env'
 
 /** Brand panel + form column, shared by the sign-in and registration pages. */
 export default function AuthLayout({ children }: { children: ReactNode }) {
@@ -23,14 +21,7 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
       </section>
 
       <main className="flex flex-1 items-center justify-center px-6 py-12 sm:px-10">
-        <div className="w-full max-w-sm">
-          {children}
-          {isDev && (
-            <div className="border-mist mt-10 border-t pt-4">
-              <ConnectionStatus />
-            </div>
-          )}
-        </div>
+        <div className="w-full max-w-sm">{children}</div>
       </main>
     </div>
   )

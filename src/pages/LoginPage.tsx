@@ -13,6 +13,7 @@ export default function LoginPage() {
   const { signIn } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [remember, setRemember] = useState(false)
   const [fieldErrors, setFieldErrors] = useState<{
     email?: string | null
     password?: string | null
@@ -32,7 +33,7 @@ export default function LoginPage() {
 
     setSubmitting(true)
     try {
-      await signIn(email, password)
+      await signIn(email, password, remember)
       // GuestRoute redirects once the auth state updates.
     } catch (error) {
       setFormError(authErrorMessage(error))
@@ -65,6 +66,18 @@ export default function LoginPage() {
           onChange={(e) => setPassword(e.target.value)}
           error={fieldErrors.password}
         />
+        <label className="flex items-start gap-2.5 text-sm">
+          <input
+            type="checkbox"
+            checked={remember}
+            onChange={(e) => setRemember(e.target.checked)}
+            className="border-ink/30 accent-reservoir mt-0.5 size-4 rounded"
+          />
+          <span>
+            <span className="font-medium">Keep me signed in</span>
+            <span className="text-ink/60 block">Leave this unticked on a shared computer.</span>
+          </span>
+        </label>
         <Button
           type="submit"
           loading={submitting}

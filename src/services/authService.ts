@@ -2,7 +2,10 @@
  * All Firebase Authentication calls live here so pages and context stay thin.
  */
 import {
+  browserLocalPersistence,
+  browserSessionPersistence,
   createUserWithEmailAndPassword,
+  setPersistence,
   signInWithEmailAndPassword,
   signOut as firebaseSignOut,
   updateProfile,
@@ -21,7 +24,13 @@ import { normalisePhone } from '../utils/validation'
 import { auth, db } from './firebase'
 import { serverConfirmed } from './live'
 
-export async function signIn(email: string, password: string): Promise<void> {
+/**
+ * Signs in. `remember` = "Keep me signed in": stay signed in on this device until
+ * signing out. Otherwise the session lasts only while this tab is open (a refresh
+ * keeps it; a new tab or browser restart asks again). Safer on shared computers.
+ */
+export async function signIn(email: string, password: string, remember = false): Promise<void> {
+  await setPersistence(auth, remember ? browserLocalPersistence : browserSessionPersistence)
   await signInWithEmailAndPassword(auth, email.trim(), password)
 }
 
@@ -41,6 +50,8 @@ export interface RegistrationInput {
  * admin (Phase 2). The rules only allow a new profile with role "customer".
  */
 export async function registerCustomer(input: RegistrationInput): Promise<void> {
+  // New accounts start with a tab-only session, like an unticked "Keep me signed in"
+  await setPersistence(auth, browserSessionPersistence)
   const credential = await createUserWithEmailAndPassword(auth, input.email.trim(), input.password)
   const displayName = input.displayName.trim()
   await updateProfile(credential.user, { displayName })

@@ -14,7 +14,8 @@ export interface AuthContextValue {
   profileLoading: boolean
   /** True while a registration is in progress (keeps the form mounted). */
   registering: boolean
-  signIn: (email: string, password: string) => Promise<void>
+  /** `remember`: keep signed in on this device ("Keep me signed in"). */
+  signIn: (email: string, password: string, remember?: boolean) => Promise<void>
   signOut: () => Promise<void>
   register: (input: RegistrationInput) => Promise<void>
   /** Forces a token refresh so new custom claims apply without signing out. */
