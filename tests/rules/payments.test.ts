@@ -14,8 +14,12 @@ import {
   initializeTestEnvironment,
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing'
-import { getApps, initializeApp } from 'firebase-admin/app'
-import { getFirestore as adminDb } from 'firebase-admin/firestore'
+// The functions' own firebase-admin copy, the one paymentStore.ts uses (see adminApp.ts)
+import {
+  getApps,
+  getFirestore as adminDb,
+  initializeApp,
+} from '../../functions/src/shared/adminApp'
 import { addDoc, collection, getDocs, type Firestore } from 'firebase/firestore'
 import { buildSampleData } from '../../scripts/sample-data'
 import { billingQueries } from '../../src/services/billingQueries'
