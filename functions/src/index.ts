@@ -15,6 +15,7 @@ import { initializeApp } from 'firebase-admin/app'
 import { setGlobalOptions } from 'firebase-functions/v2'
 import * as logger from 'firebase-functions/logger'
 import { onRequest } from 'firebase-functions/v2/https'
+import { generateInvoice, runBilling } from './routes/billing'
 import { setUserRole } from './routes/setUserRole'
 import { authenticate, HttpError, sendError, sendSuccess, type Handler } from './shared/http'
 
@@ -36,6 +37,8 @@ const CORS_ORIGINS = [
 /** POST endpoints. Add new ones here. */
 const routes: Record<string, Handler> = {
   setUserRole,
+  generateInvoice,
+  runBilling,
 }
 
 export const api = onRequest({ cors: CORS_ORIGINS }, async (req, res) => {
@@ -59,3 +62,5 @@ export const api = onRequest({ cors: CORS_ORIGINS }, async (req, res) => {
 export const health = onRequest((_req, res) => {
   sendSuccess(res, 'AquaLink functions are running', { timestamp: new Date().toISOString() })
 })
+
+export { markOverdueInvoices } from './scheduled/markOverdueInvoices'

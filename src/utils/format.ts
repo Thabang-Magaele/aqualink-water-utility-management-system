@@ -83,3 +83,10 @@ export function formatMonth(date: Date): string {
 export function formatKl(value: number): string {
   return `${new Intl.NumberFormat('en-ZA', { maximumFractionDigits: 1, minimumFractionDigits: 1 }).format(value)} kL`
 }
+
+/** "2026-09" → "September 2026". */
+export function formatPeriod(period: string): string {
+  const [y, m] = period.split('-').map(Number)
+  if (!y || !m) return period
+  return new Date(y, m - 1, 1).toLocaleDateString('en-ZA', { month: 'long', year: 'numeric' })
+}

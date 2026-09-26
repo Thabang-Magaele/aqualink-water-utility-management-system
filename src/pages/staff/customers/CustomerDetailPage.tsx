@@ -1,6 +1,6 @@
 import { ArrowLeft, Gauge, Pencil, Ticket as TicketIcon, UserX, Wallet } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useParams, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import BalanceText from '../../../components/BalanceText'
 import Button from '../../../components/Button'
 import Card from '../../../components/Card'
@@ -47,6 +47,7 @@ export default function CustomerDetailPage() {
   const { role } = useAuth()
   const sections = customerSectionsFor(role)
   const [editing, setEditing] = useState(false)
+  const navigate = useNavigate()
 
   const detail = useAsync(() => loadCustomer(customerId), `customer:${customerId}`)
   const invoices = useAsync(
@@ -217,6 +218,11 @@ export default function CustomerDetailPage() {
             <DataTable
               caption="Invoices"
               columns={invoiceColumns(accountNumbers)}
+              onRowClick={
+                canOpen(role, '/staff/billing')
+                  ? (i) => navigate(`/staff/billing/invoices/${i.id}`)
+                  : undefined
+              }
               rows={invoices.data}
               getRowId={(i) => i.id}
               loading={invoices.loading}

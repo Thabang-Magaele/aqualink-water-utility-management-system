@@ -8,6 +8,7 @@
 import type { Timestamp } from 'firebase/firestore'
 import type {
   Account,
+  BillingSettings,
   Asset,
   AuditLog,
   Customer,
@@ -561,6 +562,14 @@ export function buildSampleData(ids: SampleIds = {}, now = new Date()): SeedDoc[
     ],
   ]
   notes.forEach(([id, n]) => put<Notification>(`notifications/${id}`, n))
+
+  // -- Billing settings (the tariff the sample invoices were issued at) ------
+  put<BillingSettings>('settings/billing', {
+    tariffRate: SAMPLE_TARIFF,
+    paymentTermsDays: 21,
+    updatedAt: daysAgo(400),
+    updatedBy: staffId,
+  })
 
   // -- Audit logs ------------------------------------------------------------
   put<AuditLog>('auditLogs/sample-audit-1', {

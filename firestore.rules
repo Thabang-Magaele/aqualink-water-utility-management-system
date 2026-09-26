@@ -197,6 +197,8 @@ service cloud.firestore {
 
       allow create: if hasRole(['admin', 'billing'])
         && validAccount(incoming())
+        // Balances only change server-side (invoices and payments), so a new account starts at R0
+        && incoming().balance == 0
         && exists(/databases/$(database)/documents/customers/$(incoming().customerId))
         && meterLinkOk(incoming())
         && isNow(incoming().createdAt)
@@ -204,7 +206,7 @@ service cloud.firestore {
 
       allow update: if hasRole(['admin', 'billing'])
         && validAccount(incoming())
-        && unchanged(['accountNumber', 'customerId', 'createdAt'])
+        && unchanged(['accountNumber', 'customerId', 'balance', 'createdAt'])
         && (incoming().meterId == existing().meterId || meterLinkOk(incoming()))
         && isNow(incoming().updatedAt);
 
@@ -278,29 +280,10 @@ service cloud.firestore {
 
     // =========================================================== INVOICES
     match /invoices/{invoiceId} {
-      function validNewInvoice(d) {
-        return hasExactly(d, ['invoiceNumber', 'accountId', 'customerId', 'billingPeriod',
-                              'previousReading', 'currentReading', 'consumption', 'tariffRate',
-                              'amount', 'status', 'dueDate', 'paidAt', 'createdAt'])
-          && isRequiredText(d.invoiceNumber, 40)
-          && d.billingPeriod is string && d.billingPeriod.matches('^[0-9]{4}-(0[1-9]|1[0-2])$')
-          && isNonNegative(d.previousReading)
-          && d.currentReading is number && d.currentReading >= d.previousReading
-          // The arithmetic must add up (small tolerance for decimal rounding)
-          && d.consumption is number
-          && math.abs(d.consumption - (d.currentReading - d.previousReading)) < 0.001
-          && d.tariffRate is number && d.tariffRate > 0
-          && d.amount is number
-          && math.abs(d.amount - d.consumption * d.tariffRate) < 0.01
-          && d.status == 'UNPAID'
-          && d.paidAt == null
-          && d.dueDate is timestamp
-          && isNow(d.createdAt)
-          && get(/databases/$(database)/documents/accounts/$(d.accountId)).data.customerId == d.customerId;
-      }
-
       allow read: if ownsRecord() || hasRole(['admin', 'call_centre', 'billing']);
-      allow create: if hasRole(['admin', 'billing']) && validNewInvoice(incoming());
+      // Created only by the billing Cloud Function, in a transaction that also raises
+      // the account balance, so an invoice and its balance can never disagree.
+      allow create: if false;
 
       // Staff may only mark an unpaid invoice overdue. PAID is set by the
       // payment Cloud Function when money is actually received.
@@ -310,6 +293,22 @@ service cloud.firestore {
         && incoming().status == 'OVERDUE';
 
       allow delete: if isAdmin();
+    }
+
+    // =========================================================== SETTINGS
+    match /settings/billing {
+      allow read: if hasRole(['admin', 'billing', 'call_centre']);
+      // Administrators set the tariff (rand per kL) and payment terms (days).
+      allow write: if isAdmin()
+        && hasExactly(incoming(), ['tariffRate', 'paymentTermsDays', 'updatedAt', 'updatedBy'])
+        && incoming().tariffRate is number
+        && incoming().tariffRate > 0
+        && incoming().tariffRate <= 1000
+        && incoming().paymentTermsDays is int
+        && incoming().paymentTermsDays >= 1
+        && incoming().paymentTermsDays <= 90
+        && isNow(incoming().updatedAt)
+        && incoming().updatedBy == uid();
     }
 
     // =========================================================== PAYMENTS

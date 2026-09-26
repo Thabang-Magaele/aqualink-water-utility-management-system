@@ -2,7 +2,7 @@
 
 AquaLink is a web-based MVP for **Silulumanzi**: a Customer Portal (accounts, bills, usage, leak reports) and a role-based Staff Console (call centre, technicians, billing, assets, water quality, communications), built on React and Firebase.
 
-> Status: **Phase 9: meter readings and consumption.** Billing records readings with mistake checks; staff and customers see consumption per period as charts and tables.
+> Status: **Phase 10: billing and invoices.** A billing Cloud Function turns meter readings into invoices (consumption × tariff) and raises balances in one transaction; overdue invoices are marked nightly.
 
 ## Tech stack
 
@@ -162,6 +162,18 @@ Customer reports ─▶ Call centre assigns ─▶ Technician starts ─▶ Tech
 - **Usage** (`/customer/usage`): each property's last period, monthly average, comparison with average ("check for leaks" when it's well above), chart and history.
 - Maths in `src/utils/consumption.ts` (unit-tested); queries and write payloads in `src/services/meterQueries.ts`, checked against the rules as each role by `tests/rules/meters.test.ts`.
 - **Replacing a meter** (moving an account to a new meter) is not in this MVP.
+
+## Billing and invoices (Phase 10)
+
+- **Billing** (`/staff/billing`, billing and admin): outstanding and overdue totals, every invoice with status tabs, the tariff card, and **Run billing**. A run first shows a preview (each account's consumption and amount, the total, and skipped accounts with the reason), then creates the invoices when confirmed. A single account can be billed from its meter page.
+- **Invoices** (`/staff/billing/invoices/:id`, `/customer/bills/:id`): a printable statement (**Print or save as PDF**) showing the readings, consumption, tariff and amount.
+- **Bills** (`/customer/bills`): amount due, next upcoming due date, an overdue warning, and every invoice.
+- **How an invoice is calculated** (`functions/src/shared/billing.ts`, unit-tested in `tests/functions/billing.test.ts`): water used since the last invoiced reading (or since installation) × the flat tariff in `settings/billing`, rounded to cents, due after the payment terms. Billing periods use South African time.
+- **Server-side only:** invoices are created by the `api/generateInvoice` and `api/runBilling` endpoints, each account in a Firestore transaction that creates the invoice, raises the balance and notifies the customer together. The invoice ID is tied to the reading billed, so the same reading can never be billed twice. The browser cannot create invoices or change balances (see `docs/security.md`).
+- **Overdue:** the `markOverdueInvoices` scheduled function runs every night at 01:00 (South African time), marks unpaid invoices past their due date as overdue, and notifies the customer.
+- **Tariff:** administrators set the rate (rand per kL) and payment terms on the Billing page. Existing invoices keep the rate they were issued at.
+
+**Deploying:** `firebase deploy --only firestore:rules,functions`. The first deploy of the nightly job enables Cloud Scheduler for the project (the CLI does this for you).
 
 ## Scripts
 

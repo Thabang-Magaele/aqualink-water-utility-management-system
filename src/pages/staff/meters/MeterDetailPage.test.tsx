@@ -18,6 +18,8 @@ const service = vi.hoisted(() => ({
   setMeterStatus: vi.fn(),
 }))
 vi.mock('../../../services/meterService', () => service)
+// The page's invoice card talks to the billing API; keep tests away from real Firebase
+vi.mock('../../../services/billingService', () => ({ generateInvoice: vi.fn() }))
 
 function renderPage() {
   return render(
@@ -132,6 +134,12 @@ describe('MeterDetailPage', () => {
     renderPage()
     expect(await screen.findByText(/marked faulty, so no new readings/)).toBeInTheDocument()
     expect(screen.queryByLabelText(/Reading on the dial/)).not.toBeInTheDocument()
+  })
+
+  it('offers billing for the meter’s account', async () => {
+    renderPage()
+    expect(await screen.findByRole('heading', { name: 'Invoice' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Preview invoice' })).toBeInTheDocument()
   })
 
   it('changes the meter status', async () => {

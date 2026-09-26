@@ -12,7 +12,7 @@ the React app. Hiding a menu item is convenience; the rules are what actually st
    Some fields can never change after creation (a ticket's customer, an account's number…).
 3. **Links:** cross-document checks, for example:
    - a meter reading must match its meter's account and customer, can't be lower than the last reading, and can't be dated before it (the meter's last-reading date never moves backwards);
-   - an invoice's consumption and amount must equal the readings × tariff;
+   - account balances never change from the browser (only invoices and payments, server-side, change them), and a new account starts at R0;
    - a customer can only report a ticket against their own account;
    - tickets can only be assigned to users whose role is `technician`;
    - a water test's NORMAL/ALERT status must match its result and limits, so an alert can't be hidden.
@@ -22,27 +22,29 @@ the React app. Hiding a menu item is convenience; the rules are what actually st
 R = read, W = create/update (with the checks above), – = no access. "own" = records whose
 `customerId`/`userId` is the signed-in user.
 
-| Collection        | Customer             | Call centre                    | Technician            | Billing                 | Asset mgr     | Water quality | Comms | Admin                   |
-| ----------------- | -------------------- | ------------------------------ | --------------------- | ----------------------- | ------------- | ------------- | ----- | ----------------------- |
-| users             | R/W own name & phone | R technicians (to assign jobs) | –                     | –                       | –             | –             | –     | R all                   |
-| customers         | R own, W own phone   | R W                            | –                     | R, link accounts        | –             | –             | –     | R W                     |
-| accounts          | R own                | R                              | –                     | R W                     | –             | –             | –     | R W                     |
-| meters, readings  | R own                | R                              | –                     | R W                     | –             | –             | –     | R W                     |
-| invoices          | R own                | R                              | –                     | R, create, mark overdue | –             | –             | –     | R, create, mark overdue |
-| payments          | R own                | –                              | –                     | R                       | –             | –             | –     | R                       |
-| tickets           | R own, report        | R W                            | R/W assigned (status) | –                       | R, link asset | –             | –     | R W                     |
-| ticket history    | R own, add notes     | R, add                         | R/add assigned        | –                       | R             | –             | –     | R, add                  |
-| assets            | –                    | R                              | R                     | R                       | R W           | R             | R     | R W                     |
-| waterQualityTests | –                    | –                              | –                     | –                       | R             | R W           | –     | R W                     |
-| outageNotices     | R                    | R                              | R                     | R                       | R             | R             | R W   | R W                     |
-| notifications     | R own, mark read     | own                            | own                   | own                     | own           | own           | own   | own                     |
-| auditLogs         | –                    | –                              | –                     | –                       | –             | –             | –     | R                       |
+| Collection        | Customer             | Call centre                    | Technician            | Billing          | Asset mgr     | Water quality | Comms | Admin           |
+| ----------------- | -------------------- | ------------------------------ | --------------------- | ---------------- | ------------- | ------------- | ----- | --------------- |
+| users             | R/W own name & phone | R technicians (to assign jobs) | –                     | –                | –             | –             | –     | R all           |
+| customers         | R own, W own phone   | R W                            | –                     | R, link accounts | –             | –             | –     | R W             |
+| accounts          | R own                | R                              | –                     | R W              | –             | –             | –     | R W             |
+| meters, readings  | R own                | R                              | –                     | R W              | –             | –             | –     | R W             |
+| invoices          | R own                | R                              | –                     | R, mark overdue  | –             | –             | –     | R, mark overdue |
+| payments          | R own                | –                              | –                     | R                | –             | –             | –     | R               |
+| settings/billing  | –                    | R                              | –                     | R                | –             | –             | –     | R W             |
+| tickets           | R own, report        | R W                            | R/W assigned (status) | –                | R, link asset | –             | –     | R W             |
+| ticket history    | R own, add notes     | R, add                         | R/add assigned        | –                | R             | –             | –     | R, add          |
+| assets            | –                    | R                              | R                     | R                | R W           | R             | R     | R W             |
+| waterQualityTests | –                    | –                              | –                     | –                | R             | R W           | –     | R W             |
+| outageNotices     | R                    | R                              | R                     | R                | R             | R             | R W   | R W             |
+| notifications     | R own, mark read     | own                            | own                   | own              | own           | own           | own   | own             |
+| auditLogs         | –                    | –                              | –                     | –                | –             | –             | –     | R               |
 
 ## Server-only writes
 
 These can't be written from the browser by anyone, including admins. They are created by Cloud Functions
 or the Admin SDK, which bypass the rules:
 
+- **invoices** and **account balances** (the billing function, Phase 10; the nightly job marks overdue)
 - **payments**, and marking an invoice **PAID** (the payment function, Phase 11)
 - **notifications**: created by the `onTicketWritten` Cloud Function trigger (Phase 8); more triggers in Phase 12
 - **auditLogs** (Phase 18)

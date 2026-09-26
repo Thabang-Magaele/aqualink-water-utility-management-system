@@ -358,3 +358,13 @@ export const WATER_QUALITY_PARAMETERS = {
 >
 
 export type WaterQualityParameter = keyof typeof WATER_QUALITY_PARAMETERS
+
+/** settings/billing: the simplified tariff. Changed by administrators only. */
+export interface BillingSettings {
+  /** Rand per kilolitre. */
+  tariffRate: number
+  /** Days from the invoice date to the due date. */
+  paymentTermsDays: number
+  updatedAt: Timestamp | null
+  updatedBy: string | null
+}

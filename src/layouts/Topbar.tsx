@@ -26,7 +26,7 @@ export default function Topbar({ onOpenMenu }: { onOpenMenu: () => void }) {
   }))
 
   return (
-    <header className="border-mist sticky top-0 z-20 flex h-16 items-center gap-3 border-b bg-white/95 px-4 backdrop-blur sm:px-6 lg:px-8">
+    <header className="border-mist sticky top-0 z-20 flex h-16 items-center gap-3 border-b bg-white/95 px-4 backdrop-blur sm:px-6 lg:px-8 print:hidden">
       <button
         type="button"
         onClick={onOpenMenu}

@@ -67,6 +67,14 @@ export function validateData(docs: SeedDoc[]): string[] {
       `invoice ${i._id} billingPeriod not YYYY-MM`,
     )
   }
+  const billing = rows('settings').find((r) => r._id === 'billing')
+  need(Boolean(billing), 'settings/billing is missing')
+  for (const i of rows('invoices')) {
+    need(
+      !billing || i.tariffRate === billing.tariffRate,
+      `invoice ${i._id} tariff differs from settings/billing`,
+    )
+  }
   for (const p of rows('payments')) {
     need(invoices.has(p.invoiceId as string), `payment ${p._id} → missing invoice`)
     const inv = rows('invoices').find((i) => i._id === p.invoiceId)

@@ -25,6 +25,7 @@ import {
 } from '../../../utils/consumption'
 import { friendlyError } from '../../../utils/errors'
 import { formatDate, formatKl, formatNumber } from '../../../utils/format'
+import GenerateInvoiceCard from './GenerateInvoiceCard'
 import RecordReadingCard from './RecordReadingCard'
 
 const CRUMBS = [
@@ -230,6 +231,12 @@ export default function MeterDetailPage() {
         </div>
         <div className="space-y-6">
           <RecordReadingCard meter={meter} series={series} onSaved={detail.reload} />
+          {account && (
+            <GenerateInvoiceCard
+              key={`${account.id}:${meter.lastReading}`}
+              accountId={account.id}
+            />
+          )}
           <Card title="Meter status">
             <div className="flex gap-2">
               <label className="sr-only" htmlFor="meter-status-select">

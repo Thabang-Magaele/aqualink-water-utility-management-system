@@ -369,6 +369,26 @@ describe('Customers and accounts', () => {
         .update({ customerId: 'sample-cust-2', updatedAt: now() }),
     )
   })
+  test('rejected: opening an account with a balance, or billing changing one', async () => {
+    await rejected(
+      as('bill1', 'billing')
+        .doc('accounts/new-acc')
+        .set(account({ balance: 150 })),
+    )
+    await rejected(
+      as('bill1', 'billing').doc('accounts/sample-acc-1').update({ balance: 0, updatedAt: now() }),
+    )
+    await rejected(
+      as('admin1', 'admin').doc('accounts/sample-acc-1').update({ balance: 0, updatedAt: now() }),
+    )
+  })
+  test('allowed: billing suspends an account (balance untouched)', async () => {
+    await allowed(
+      as('bill1', 'billing')
+        .doc('accounts/sample-acc-1')
+        .update({ status: 'SUSPENDED', updatedAt: now() }),
+    )
+  })
   test('rejected: technician or customer changing a balance', async () => {
     await rejected(
       as('tech1', 'technician')
@@ -425,20 +445,11 @@ describe('Meter readings', () => {
 
 // ================================================================ INVOICES & PAYMENTS
 describe('Invoices and payments', () => {
-  test('allowed: billing creates a correct invoice', async () => {
-    await allowed(as('bill1', 'billing').collection('invoices').add(invoiceFor()))
-  })
-  test('rejected: amounts that don’t add up', async () => {
-    const b = as('bill1', 'billing')
-    await rejected(b.collection('invoices').add(invoiceFor({ amount: 10 })))
-    await rejected(b.collection('invoices').add(invoiceFor({ consumption: 1 })))
-    await rejected(b.collection('invoices').add(invoiceFor({ currentReading: 1200 })))
-  })
-  test('rejected: created already PAID, bad period, or for the wrong customer', async () => {
-    const b = as('bill1', 'billing')
-    await rejected(b.collection('invoices').add(invoiceFor({ status: 'PAID' })))
-    await rejected(b.collection('invoices').add(invoiceFor({ billingPeriod: '2026-13' })))
-    await rejected(b.collection('invoices').add(invoiceFor({ customerId: 'sample-cust-2' })))
+  test('rejected: creating invoices from the browser, even correct ones (billing Cloud Function only)', async () => {
+    // Invoices are created server-side together with the balance increase (Phase 10).
+    await rejected(as('bill1', 'billing').collection('invoices').add(invoiceFor()))
+    await rejected(as('admin1', 'admin').collection('invoices').add(invoiceFor()))
+    await rejected(as('custA').collection('invoices').add(invoiceFor()))
   })
   test('allowed: billing marks an unpaid invoice overdue', async () => {
     await allowed(as('bill1', 'billing').doc(unpaidInvoicePath()).update({ status: 'OVERDUE' }))

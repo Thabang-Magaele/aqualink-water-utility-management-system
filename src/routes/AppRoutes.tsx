@@ -10,6 +10,9 @@ import StaffDashboardPage from '../pages/staff/StaffDashboardPage'
 import UsersPage from '../pages/staff/UsersPage'
 import AccountsPage from '../pages/staff/AccountsPage'
 import MeterDetailPage from '../pages/staff/meters/MeterDetailPage'
+import BillingPage from '../pages/staff/billing/BillingPage'
+import InvoicePage from '../pages/staff/billing/InvoicePage'
+import BillsPage from '../pages/customer/BillsPage'
 import MetersPage from '../pages/staff/meters/MetersPage'
 import UsagePage from '../pages/customer/UsagePage'
 import CustomerDetailPage from '../pages/staff/customers/CustomerDetailPage'
@@ -35,6 +38,8 @@ const PAGES: Record<string, ReactElement> = {
   '/staff/customers': <CustomersPage />,
   '/staff/accounts': <AccountsPage />,
   '/staff/meters': <MetersPage />,
+  '/staff/billing': <BillingPage />,
+  '/customer/bills': <BillsPage />,
   '/customer/usage': <UsagePage />,
   '/staff/tickets': <TicketQueuePage />,
   '/staff/field': <FieldJobsPage />,
@@ -76,6 +81,12 @@ export default function AppRoutes() {
         <Route element={<AppLayout />}>
           {guardedRoutes(STAFF_NAV)}
           {/* Detail pages share the roles of their parent menu item */}
+          <Route element={<ProtectedRoute roles={rolesOf('/staff/billing')} />}>
+            <Route
+              path="/staff/billing/invoices/:invoiceId"
+              element={<InvoicePage audience="staff" />}
+            />
+          </Route>
           <Route element={<ProtectedRoute roles={rolesOf('/staff/meters')} />}>
             <Route path="/staff/meters/:meterId" element={<MeterDetailPage />} />
           </Route>
@@ -102,6 +113,7 @@ export default function AppRoutes() {
         <Route element={<AppLayout />}>
           {guardedRoutes(CUSTOMER_NAV)}
           <Route path="/customer/tickets/:ticketId" element={<CustomerTicketPage />} />
+          <Route path="/customer/bills/:invoiceId" element={<InvoicePage audience="customer" />} />
         </Route>
       </Route>
 
