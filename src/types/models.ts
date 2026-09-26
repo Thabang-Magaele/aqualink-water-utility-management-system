@@ -211,10 +211,17 @@ export interface Payment {
   amount: number
   status: PaymentStatus
   paymentMethod: PaymentMethod
-  /** Provider or mock reference shown on receipts, e.g. "MOCK-7F3K9Q". */
-  reference: string
-  /** "MOCK" in the MVP; the real gateway's name later. */
+  /** Provider or mock reference shown on receipts, e.g. "MOCK-7F3K9Q". Null until the charge completes. */
+  reference: string | null
+  /** "MOCK" in the MVP; the real gateway's name later; "MANUAL" for cash/EFT recorded by staff. */
   provider: string
+  /** Card payments only: brand and last four digits for the receipt. Full numbers are never stored. */
+  cardBrand?: string | null
+  cardLast4?: string | null
+  /** uid of whoever made or recorded the payment. */
+  recordedBy?: string
+  /** Why a failed payment didn't go through. */
+  failureReason?: string | null
   paidAt: Timestamp | null
   createdAt: Timestamp
 }

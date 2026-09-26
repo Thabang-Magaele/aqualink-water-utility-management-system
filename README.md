@@ -2,7 +2,7 @@
 
 AquaLink is a web-based MVP for **Silulumanzi**: a Customer Portal (accounts, bills, usage, leak reports) and a role-based Staff Console (call centre, technicians, billing, assets, water quality, communications), built on React and Firebase.
 
-> Status: **Phase 10: billing and invoices.** A billing Cloud Function turns meter readings into invoices (consumption × tariff) and raises balances in one transaction; overdue invoices are marked nightly.
+> Status: **Phase 11: payments.** Customers pay invoices by (sandbox) card; billing records EFT and cash; a Cloud Function marks the invoice paid and lowers the balance in one transaction.
 
 ## Tech stack
 
@@ -174,6 +174,23 @@ Customer reports ─▶ Call centre assigns ─▶ Technician starts ─▶ Tech
 - **Tariff:** administrators set the rate (rand per kL) and payment terms on the Billing page. Existing invoices keep the rate they were issued at.
 
 **Deploying:** `firebase deploy --only firestore:rules,functions`. The first deploy of the nightly job enables Cloud Scheduler for the project (the CLI does this for you).
+
+## Payments (Phase 11)
+
+- **Customers** open an unpaid invoice → **Pay now** (`/customer/bills/:id/pay`) → card form → receipt. The invoice becomes **Paid**, the balance goes down, and the bell shows "Payment received". Payment history appears on the invoice and on **Bills**.
+- **Billing / admin** use **Record payment** on an invoice for an EFT (bank reference required) or cash at the office.
+- **Sandbox cards** (no real money moves; any name, a future expiry, any 3 digits):
+
+  | Card number         | Result                       |
+  | ------------------- | ---------------------------- |
+  | 4242 4242 4242 4242 | Payment succeeds             |
+  | 4000 0000 0000 0002 | Card is declined             |
+  | 4000 0000 0000 9995 | Insufficient funds           |
+  | 4000 0000 0000 0119 | Provider error (not charged) |
+
+- **How it stays correct** (`functions/src/shared/paymentStore.ts`): the amount always comes from the invoice, never the browser. Each attempt has a one-time key, so a retry or double click returns the first result instead of charging again. The card is charged outside any transaction (which could retry); then one transaction marks the invoice paid, lowers the balance, completes the payment and notifies the customer. If the invoice was paid by someone else in between, the new charge is refunded. Only the card's last four digits are stored.
+- **Real gateway later:** `PaymentProvider` in `functions/src/shared/payments.ts` is the seam for PayFast, Yoco or Peach Payments. Select it with `PAYMENT_PROVIDER` in `functions/.env` and keep its keys in `firebase functions:secrets:set`. A real integration should use the gateway's hosted checkout so card details never reach AquaLink's servers.
+- **Simplifications:** payments are for the full invoice amount (no part payments), and refunds are only simulated.
 
 ## Scripts
 

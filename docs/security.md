@@ -45,7 +45,7 @@ These can't be written from the browser by anyone, including admins. They are cr
 or the Admin SDK, which bypass the rules:
 
 - **invoices** and **account balances** (the billing function, Phase 10; the nightly job marks overdue)
-- **payments**, and marking an invoice **PAID** (the payment function, Phase 11)
+- **payments**, and marking an invoice **PAID** (the `api/payment` function, Phase 11: customers pay their own invoices by card; billing and admin also record EFT and cash; the amount always comes from the invoice)
 - **notifications**: created by the `onTicketWritten` Cloud Function trigger (Phase 8); more triggers in Phase 12
 - **auditLogs** (Phase 18)
 - **roles** (custom claims, via `setUserRole`)

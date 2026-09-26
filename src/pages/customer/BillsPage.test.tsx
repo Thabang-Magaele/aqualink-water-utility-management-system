@@ -27,6 +27,7 @@ beforeEach(() => {
   service.loadMyBills.mockReset().mockResolvedValue({
     invoices,
     accounts: [account, { ...account, id: 'a3', propertyAddress: '27 Jacaranda Avenue' }],
+    payments: [],
   })
 })
 
@@ -46,6 +47,7 @@ describe('BillsPage', () => {
     service.loadMyBills.mockResolvedValue({
       invoices: invoices.filter((i) => i.status !== 'UNPAID'),
       accounts: [account],
+      payments: [],
     })
     renderPage()
     const summary = within(await screen.findByRole('region', { name: 'Summary' }))
@@ -63,6 +65,7 @@ describe('BillsPage', () => {
     service.loadMyBills.mockResolvedValue({
       invoices: [invoice('P1', { status: 'PAID', paidAt: ts('2026-09-01T10:00:00') })],
       accounts: [account],
+      payments: [],
     })
     renderPage()
     expect(await screen.findByText('You’re all paid up')).toBeInTheDocument()

@@ -2,6 +2,7 @@ import { CalendarClock, CircleDollarSign, ReceiptText } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import Alert from '../../components/Alert'
 import Card from '../../components/Card'
+import PaymentHistory from '../../components/payments/PaymentHistory'
 import DataTable, { type Column } from '../../components/DataTable'
 import PageHeader from '../../components/PageHeader'
 import StatCard from '../../components/StatCard'
@@ -119,8 +120,16 @@ export default function BillsPage() {
         />
       </Card>
       <p className="text-ink/60 mt-4 flex items-center gap-2 text-sm">
-        <ReceiptText className="size-4" aria-hidden="true" /> Online payment is coming soon.
+        <ReceiptText className="size-4" aria-hidden="true" /> Open an unpaid invoice and choose “Pay
+        now” to pay it by card.
       </p>
+      {bills.data && bills.data.payments.length > 0 && (
+        <div className="mt-6">
+          <Card title="Your payments" padded={false}>
+            <PaymentHistory payments={bills.data.payments} caption="Your payments" />
+          </Card>
+        </div>
+      )}
     </>
   )
 }

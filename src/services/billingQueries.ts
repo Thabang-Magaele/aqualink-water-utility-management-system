@@ -15,6 +15,22 @@ export const billingQueries = {
   allInvoices: (db: Firestore) =>
     query(collection(db, 'invoices'), orderBy('createdAt', 'desc'), limit(INVOICE_LIST_LIMIT)),
   invoice: (db: Firestore, invoiceId: string) => doc(db, 'invoices', invoiceId),
+  /** Payments for one invoice. Customers must also filter by their own ID (the rules require it). */
+  invoicePayments: (db: Firestore, invoiceId: string, customerId?: string) =>
+    customerId
+      ? query(
+          collection(db, 'payments'),
+          where('invoiceId', '==', invoiceId),
+          where('customerId', '==', customerId),
+        )
+      : query(collection(db, 'payments'), where('invoiceId', '==', invoiceId)),
+  customerPayments: (db: Firestore, customerId: string) =>
+    query(
+      collection(db, 'payments'),
+      where('customerId', '==', customerId),
+      orderBy('createdAt', 'desc'),
+      limit(24),
+    ),
   customerInvoices: (db: Firestore, customerId: string) =>
     query(
       collection(db, 'invoices'),

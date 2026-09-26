@@ -10,7 +10,7 @@ import {
   setDoc,
   type Query,
 } from 'firebase/firestore'
-import type { Account, BillingSettings, Customer, Invoice } from '../types/models'
+import type { Account, BillingSettings, Customer, Invoice, Payment } from '../types/models'
 import { apiPost } from './api'
 import {
   billingQueries,
@@ -65,6 +65,8 @@ export interface InvoiceDetail {
   account: Account | null
   /** Null for customers viewing their own bill (they know who they are). */
   customer: Customer | null
+  /** Payment attempts on this invoice, newest first. */
+  payments: Payment[]
 }
 
 /** One invoice with its account (and customer, for staff). Null if it doesn't exist. */
@@ -75,11 +77,15 @@ export async function loadInvoice(
   const snap = await getDocFromServer(billingQueries.invoice(db, invoiceId))
   if (!snap.exists()) return null
   const invoice = { id: snap.id, ...snap.data() } as Invoice
-  const [accountSnap, customerSnap] = await Promise.all([
+  const [accountSnap, customerSnap, payments] = await Promise.all([
     getDocFromServer(doc(db, 'accounts', invoice.accountId)),
     withCustomer
       ? getDocFromServer(customerQueries.customer(db, invoice.customerId))
       : Promise.resolve(null),
+    // Customers query with their own ID so the rules can prove ownership
+    rows<Payment>(
+      billingQueries.invoicePayments(db, invoiceId, withCustomer ? undefined : invoice.customerId),
+    ),
   ])
   return {
     invoice,
@@ -89,18 +95,25 @@ export async function loadInvoice(
     customer: customerSnap?.exists()
       ? ({ id: customerSnap.id, ...customerSnap.data() } as Customer)
       : null,
+    payments: newestFirst(payments),
   }
 }
 
-/** The signed-in customer's invoices and accounts. */
+/** The signed-in customer's invoices, accounts and payments. */
 export async function loadMyBills(
   customerId: string,
-): Promise<{ invoices: Invoice[]; accounts: Account[] }> {
-  const [invoices, accounts] = await Promise.all([
+): Promise<{ invoices: Invoice[]; accounts: Account[]; payments: Payment[] }> {
+  const [invoices, accounts, payments] = await Promise.all([
     rows<Invoice>(billingQueries.customerInvoices(db, customerId)),
     rows<Account>(customerQueries.accounts(db, customerId)),
+    rows<Payment>(billingQueries.customerPayments(db, customerId)),
   ])
-  return { invoices, accounts }
+  return { invoices, accounts, payments }
+}
+
+function newestFirst(payments: Payment[]): Payment[] {
+  const t = (p: Payment) => p.createdAt?.toMillis?.() ?? 0
+  return [...payments].sort((a, b) => t(b) - t(a))
 }
 
 // ---------------------------------------------------------------- Cloud Function calls

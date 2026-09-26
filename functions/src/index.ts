@@ -16,6 +16,7 @@ import { setGlobalOptions } from 'firebase-functions/v2'
 import * as logger from 'firebase-functions/logger'
 import { onRequest } from 'firebase-functions/v2/https'
 import { generateInvoice, runBilling } from './routes/billing'
+import { payment } from './routes/payment'
 import { setUserRole } from './routes/setUserRole'
 import { authenticate, HttpError, sendError, sendSuccess, type Handler } from './shared/http'
 
@@ -39,6 +40,7 @@ const routes: Record<string, Handler> = {
   setUserRole,
   generateInvoice,
   runBilling,
+  payment,
 }
 
 export const api = onRequest({ cors: CORS_ORIGINS }, async (req, res) => {

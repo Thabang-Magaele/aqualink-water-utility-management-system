@@ -8,11 +8,11 @@ import type { Request } from 'firebase-functions/v2/https'
 import { roleFromClaims, type Role } from './roles'
 
 export class HttpError extends Error {
-  constructor(
-    public readonly status: number,
-    message: string,
-  ) {
+  readonly status: number
+
+  constructor(status: number, message: string) {
     super(message)
+    this.status = status
   }
 }
 

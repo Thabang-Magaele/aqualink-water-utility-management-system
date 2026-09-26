@@ -13,6 +13,7 @@ import MeterDetailPage from '../pages/staff/meters/MeterDetailPage'
 import BillingPage from '../pages/staff/billing/BillingPage'
 import InvoicePage from '../pages/staff/billing/InvoicePage'
 import BillsPage from '../pages/customer/BillsPage'
+import PayInvoicePage from '../pages/customer/PayInvoicePage'
 import MetersPage from '../pages/staff/meters/MetersPage'
 import UsagePage from '../pages/customer/UsagePage'
 import CustomerDetailPage from '../pages/staff/customers/CustomerDetailPage'
@@ -114,6 +115,7 @@ export default function AppRoutes() {
           {guardedRoutes(CUSTOMER_NAV)}
           <Route path="/customer/tickets/:ticketId" element={<CustomerTicketPage />} />
           <Route path="/customer/bills/:invoiceId" element={<InvoicePage audience="customer" />} />
+          <Route path="/customer/bills/:invoiceId/pay" element={<PayInvoicePage />} />
         </Route>
       </Route>
 
