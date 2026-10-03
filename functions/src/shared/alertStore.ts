@@ -13,18 +13,18 @@ import {
   type WaterTestSnapshot,
 } from './alerts'
 
-interface Draft {
+export interface Draft {
   id: string
   userId: string
   title: string
   message: string
-  type: 'OUTAGE' | 'WATER_QUALITY'
+  type: 'OUTAGE' | 'WATER_QUALITY' | 'SYSTEM'
   relatedId: string
   link: string | null
 }
 
 /** Creates the notifications that don't exist yet; returns how many were new. */
-async function writeOnce(drafts: Draft[]): Promise<number> {
+export async function writeOnce(drafts: Draft[]): Promise<number> {
   const db = getFirestore()
   let created = 0
   for (let i = 0; i < drafts.length; i += 400) {

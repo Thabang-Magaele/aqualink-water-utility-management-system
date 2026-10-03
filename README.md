@@ -2,7 +2,7 @@
 
 AquaLink is a web-based MVP for **Silulumanzi**: a Customer Portal (accounts, bills, usage, leak reports) and a role-based Staff Console (call centre, technicians, billing, assets, water quality, communications), built on React and Firebase.
 
-> Status: **Phase 12: notifications.** Every event in the spec notifies the right people, and everyone has a notification list and detail page.
+> Status: **Phase 13: REST API.** Eight documented endpoints for privileged and server-side work. See [docs/api.md](docs/api.md).
 
 ## Tech stack
 
@@ -208,6 +208,15 @@ Customer reports ─▶ Call centre assigns ─▶ Technician starts ─▶ Tech
 - **Detail** (`…/notifications/:id`): the full message, a link to what it's about, and **Mark as unread**. Opening it marks it read.
 - Notifications are only ever created on the server (the rules forbid it from the browser). The trigger logic is in `functions/src/shared/alerts.ts` (unit-tested) and `alertStore.ts` (tested against the emulator in `tests/rules/alerts.test.ts`). Notification IDs are fixed per event and person, so a retried trigger never sends a message twice. Editing an outage notice's wording doesn't message everyone again; only publishing, starting and restoring do.
 - All three Firestore triggers share one `FIRESTORE_REGION` setting (`functions/src/shared/region.ts`).
+
+## REST API (Phase 13)
+
+Full reference with examples: **[docs/api.md](docs/api.md)**. `GET /api` lists the endpoints.
+
+- **Endpoints:** `setUserRole`, `assignTicket`, `updateTicketStatus`, `generateInvoice`, `runBilling`, `payment`, `publishOutage`, `sendNotification`.
+- **Every request** goes through the router in `functions/src/shared/router.ts`: verify the Firebase ID token, check the role from its custom claim, validate the body (`shared/validate.ts`), do the work, answer `{ success, message, data }`. Errors never expose internals; each request is logged with endpoint, role, status and time.
+- **When REST, when Firestore?** As the spec asks, REST is used where the server must do the work: roles, billing, payments, publishing outages and messages. The ticket page still writes tickets directly, protected by the security rules; `assignTicket` and `updateTicketStatus` offer the same operations, under the same rules (a test checks they agree), for integrations and API testing.
+- **Retries are safe:** endpoints that create things take an `idempotencyKey`.
 
 ## Scripts
 
