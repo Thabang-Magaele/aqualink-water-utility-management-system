@@ -7,6 +7,7 @@ import {
   subscribeMyNotifications,
 } from '../services/notificationService'
 import NotificationBell from '../components/NotificationBell'
+import { notificationsPath } from '../utils/notifications'
 import UserMenu from '../components/UserMenu'
 import { useAuth } from '../hooks/useAuth'
 import Brand from './Brand'
@@ -45,14 +46,15 @@ export default function Topbar({ onOpenMenu }: { onOpenMenu: () => void }) {
           onSelect={(item) => {
             const n = notifications.find((x) => x.id === item.id)
             if (n && !n.read) markNotificationRead(n.id).catch(() => {})
-            if (n?.link) navigate(n.link)
+            // Go to the related ticket or invoice; otherwise open the notification itself
+            navigate(n?.link ?? `${notificationsPath(role)}/${item.id}`)
           }}
           onMarkAllRead={() =>
             markAllNotificationsRead(notifications.filter((n) => !n.read).map((n) => n.id)).catch(
               () => {},
             )
           }
-          onViewAll={role === 'customer' ? () => navigate('/customer/notifications') : undefined}
+          onViewAll={() => navigate(notificationsPath(role))}
         />
         <UserMenu />
       </div>

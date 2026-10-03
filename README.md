@@ -2,7 +2,7 @@
 
 AquaLink is a web-based MVP for **Silulumanzi**: a Customer Portal (accounts, bills, usage, leak reports) and a role-based Staff Console (call centre, technicians, billing, assets, water quality, communications), built on React and Firebase.
 
-> Status: **Phase 11: payments.** Customers pay invoices by (sandbox) card; billing records EFT and cash; a Cloud Function marks the invoice paid and lowers the balance in one transaction.
+> Status: **Phase 12: notifications.** Every event in the spec notifies the right people, and everyone has a notification list and detail page.
 
 ## Tech stack
 
@@ -192,6 +192,22 @@ Customer reports ─▶ Call centre assigns ─▶ Technician starts ─▶ Tech
 - **How it stays correct** (`functions/src/shared/paymentStore.ts`): the amount always comes from the invoice, never the browser. Each attempt has a one-time key, so a retry or double click returns the first result instead of charging again. The card is charged outside any transaction (which could retry); then one transaction marks the invoice paid, lowers the balance, completes the payment and notifies the customer. If the invoice was paid by someone else in between, the new charge is refunded. Only the card's last four digits are stored.
 - **Real gateway later:** `PaymentProvider` in `functions/src/shared/payments.ts` is the seam for PayFast, Yoco or Peach Payments. Select it with `PAYMENT_PROVIDER` in `functions/.env` and keep its keys in `firebase functions:secrets:set`. A real integration should use the gateway's hosted checkout so card details never reach AquaLink's servers.
 - **Simplifications:** payments are for the full invoice amount (no part payments), and refunds are only simulated.
+
+## Notifications (Phase 12)
+
+| Event                                                      | Who is told                                                                                        | Created by                    |
+| ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------- | ----------------------------- |
+| Ticket reported, assigned, started, escalated, resolved    | the customer; the technician (new job); call centre and admins (new report)                        | `onTicketWritten`             |
+| Invoice issued, invoice overdue                            | the customer                                                                                       | billing function, nightly job |
+| Payment received                                           | the customer                                                                                       | payment function              |
+| Outage published, scheduled outage starts, supply restored | customers with a **property** in an affected area (one message each, even with several properties) | `onOutageNoticeWritten`       |
+| Abnormal water-quality result                              | admins, water-quality staff, asset managers                                                        | `onWaterQualityTestWritten`   |
+
+- **Bell** (top bar): the 15 newest, unread count, mark all as read, **View all**. Choosing one opens the related ticket or invoice, or the notification itself.
+- **Notifications** (`/customer/notifications`, `/staff/notifications`): the 100 newest, live; All / Unread, filter by type, mark all as read.
+- **Detail** (`…/notifications/:id`): the full message, a link to what it's about, and **Mark as unread**. Opening it marks it read.
+- Notifications are only ever created on the server (the rules forbid it from the browser). The trigger logic is in `functions/src/shared/alerts.ts` (unit-tested) and `alertStore.ts` (tested against the emulator in `tests/rules/alerts.test.ts`). Notification IDs are fixed per event and person, so a retried trigger never sends a message twice. Editing an outage notice's wording doesn't message everyone again; only publishing, starting and restoring do.
+- All three Firestore triggers share one `FIRESTORE_REGION` setting (`functions/src/shared/region.ts`).
 
 ## Scripts
 

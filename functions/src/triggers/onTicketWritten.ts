@@ -5,18 +5,9 @@
  */
 import { FieldValue, getFirestore } from 'firebase-admin/firestore'
 import * as logger from 'firebase-functions/logger'
-import { defineString } from 'firebase-functions/params'
 import { onDocumentWritten } from 'firebase-functions/v2/firestore'
+import { firestoreRegion } from '../shared/region'
 import { planTicketNotifications, type TicketSnapshot } from '../shared/ticketEvents'
-
-/**
- * Firestore triggers must run in the same region as the database.
- * Set FIRESTORE_REGION in functions/.env (see functions/.env.example).
- */
-const firestoreRegion = defineString('FIRESTORE_REGION', {
-  default: 'us-central1',
-  description: 'Location of your Firestore database, e.g. africa-south1 or nam5→us-central1',
-})
 
 async function deskStaffIds(): Promise<string[]> {
   const snap = await getFirestore()

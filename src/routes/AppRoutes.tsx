@@ -16,6 +16,8 @@ import BillsPage from '../pages/customer/BillsPage'
 import PayInvoicePage from '../pages/customer/PayInvoicePage'
 import MetersPage from '../pages/staff/meters/MetersPage'
 import UsagePage from '../pages/customer/UsagePage'
+import NotificationDetailPage from '../pages/notifications/NotificationDetailPage'
+import NotificationsPage from '../pages/notifications/NotificationsPage'
 import CustomerDetailPage from '../pages/staff/customers/CustomerDetailPage'
 import CustomersPage from '../pages/staff/customers/CustomersPage'
 import FieldJobsPage from '../pages/staff/tickets/FieldJobsPage'
@@ -42,6 +44,7 @@ const PAGES: Record<string, ReactElement> = {
   '/staff/billing': <BillingPage />,
   '/customer/bills': <BillsPage />,
   '/customer/usage': <UsagePage />,
+  '/customer/notifications': <NotificationsPage />,
   '/staff/tickets': <TicketQueuePage />,
   '/staff/field': <FieldJobsPage />,
   '/customer/report': <ReportIssuePage />,
@@ -88,6 +91,9 @@ export default function AppRoutes() {
               element={<InvoicePage audience="staff" />}
             />
           </Route>
+          {/* Notifications: every staff role (reached from the bell) */}
+          <Route path="/staff/notifications" element={<NotificationsPage />} />
+          <Route path="/staff/notifications/:notificationId" element={<NotificationDetailPage />} />
           <Route element={<ProtectedRoute roles={rolesOf('/staff/meters')} />}>
             <Route path="/staff/meters/:meterId" element={<MeterDetailPage />} />
           </Route>
@@ -116,6 +122,10 @@ export default function AppRoutes() {
           <Route path="/customer/tickets/:ticketId" element={<CustomerTicketPage />} />
           <Route path="/customer/bills/:invoiceId" element={<InvoicePage audience="customer" />} />
           <Route path="/customer/bills/:invoiceId/pay" element={<PayInvoicePage />} />
+          <Route
+            path="/customer/notifications/:notificationId"
+            element={<NotificationDetailPage />}
+          />
         </Route>
       </Route>
 

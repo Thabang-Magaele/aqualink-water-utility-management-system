@@ -21,6 +21,7 @@ import { setUserRole } from './routes/setUserRole'
 import { authenticate, HttpError, sendError, sendSuccess, type Handler } from './shared/http'
 
 export { onTicketWritten } from './triggers/onTicketWritten'
+export { onOutageNoticeWritten, onWaterQualityTestWritten } from './triggers/onAlertsWritten'
 
 initializeApp()
 

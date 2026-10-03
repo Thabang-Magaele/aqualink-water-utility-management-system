@@ -2,6 +2,7 @@
 import {
   collection,
   doc,
+  getDocFromServer,
   limit,
   onSnapshot,
   orderBy,
@@ -17,13 +18,15 @@ import { db } from './firebase'
 import { serverConfirmed } from './live'
 
 export const BELL_LIMIT = 15
+/** The Notifications page shows this many of the newest. */
+export const PAGE_LIMIT = 100
 
-export function subscribeMyNotifications(uid: string): Subscribe<Notification[]> {
+export function subscribeMyNotifications(uid: string, max = BELL_LIMIT): Subscribe<Notification[]> {
   const q = query(
     collection(db, 'notifications'),
     where('userId', '==', uid),
     orderBy('createdAt', 'desc'),
-    limit(BELL_LIMIT),
+    limit(max),
   )
   // Offline, an empty cache must not read as "You're all caught up".
   return serverConfirmed<QuerySnapshot, Notification[]>(
@@ -38,6 +41,16 @@ export function subscribeMyNotifications(uid: string): Subscribe<Notification[]>
 
 export function markNotificationRead(id: string): Promise<void> {
   return updateDoc(doc(db, 'notifications', id), { read: true })
+}
+
+export function markNotificationUnread(id: string): Promise<void> {
+  return updateDoc(doc(db, 'notifications', id), { read: false })
+}
+
+/** One notification (the rules only return it to its recipient). Null if it doesn't exist. */
+export async function loadNotification(id: string): Promise<Notification | null> {
+  const snap = await getDocFromServer(doc(db, 'notifications', id))
+  return snap.exists() ? ({ id: snap.id, ...snap.data() } as Notification) : null
 }
 
 export async function markAllNotificationsRead(ids: string[]): Promise<void> {
