@@ -154,27 +154,28 @@ Send either `userIds` (up to 500) or `areas`. `link` is optional and must be an 
 
 ## Trying it from PowerShell
 
+Run these in the project folder, **one line at a time** (each is a complete command). The first line reads
+the Web API key from `.env.local`; use the password you set for the demo user.
+
 ```powershell
-$apiKey  = "<VITE_FIREBASE_API_KEY from .env.local>"
-$project = "aqualink-85d07"
-
-# 1. Sign in as a demo user to get an ID token (valid for an hour)
-$login = Invoke-RestMethod -Method Post `
-  -Uri "https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=$apiKey" `
-  -ContentType "application/json" `
-  -Body (@{ email = "callcentre@aqualink.demo"; password = "callcentre@123"; returnSecureToken = $true } | ConvertTo-Json)
+$apiKey = (Select-String -Path .env.local -Pattern '^VITE_FIREBASE_API_KEY=(.+)$').Matches[0].Groups[1].Value.Trim()
+$body = @{ email = "callcentre@aqualink.demo"; password = "callcentre@123"; returnSecureToken = $true } | ConvertTo-Json
+$login = Invoke-RestMethod -Method Post -Uri "https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=$apiKey" -ContentType "application/json" -Body $body
 $headers = @{ Authorization = "Bearer $($login.idToken)" }
-$api = "https://us-central1-$project.cloudfunctions.net/api"
-
-# 2. List the endpoints
+$api = "https://us-central1-<project-id>.cloudfunctions.net/api"
 Invoke-RestMethod -Uri $api
-
-# 3. Escalate a ticket
-Invoke-RestMethod -Method Post -Uri "$api/updateTicketStatus" -Headers $headers -ContentType "application/json" `
-  -Body (@{ ticketId = "sample-ticket-1"; status = "ESCALATED"; note = "Customer reports it is getting worse." } | ConvertTo-Json)
 ```
 
-PowerShell 7 shows 4xx answers as errors; add `-SkipHttpErrorCheck` to see the JSON `message` instead.
+The last line lists the endpoints. Then, for example, escalate a ticket:
+
+```powershell
+$escalate = @{ ticketId = "sample-ticket-1"; status = "ESCALATED"; note = "Customer reports it is getting worse." } | ConvertTo-Json
+Invoke-RestMethod -Method Post -Uri "$api/updateTicketStatus" -Headers $headers -ContentType "application/json" -Body $escalate
+```
+
+**Seeing error messages:** Windows PowerShell 5.1 only shows "(400) Bad Request". To see AquaLink's `message`,
+wrap the call: `try { <the command> } catch { $_.ErrorDetails.Message }`. (PowerShell 7 can use
+`-SkipHttpErrorCheck` instead.) Tokens last an hour; after that, repeat the `$login` and `$headers` lines.
 
 ## Adding an endpoint
 
