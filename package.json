@@ -15,7 +15,8 @@
     "test:rules": "firebase emulators:exec --only firestore --project demo-aqualink \"node --import tsx --test --test-concurrency=1 tests/rules/*.test.ts\"",
     "test": "vitest run",
     "test:watch": "vitest",
-    "check:rules": "tsx scripts/check-rules.ts"
+    "check:rules": "tsx scripts/check-rules.ts",
+    "build:web": "tsc -b tsconfig.app.json && vite build"
   },
   "dependencies": {
     "firebase": "^12.19.0",
