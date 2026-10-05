@@ -218,11 +218,30 @@ Full reference with examples: **[docs/api.md](docs/api.md)**. `GET /api` lists t
 - **When REST, when Firestore?** As the spec asks, REST is used where the server must do the work: roles, billing, payments, publishing outages and messages. The ticket page still writes tickets directly, protected by the security rules; `assignTicket` and `updateTicketStatus` offer the same operations, under the same rules (a test checks they agree), for integrations and API testing.
 - **Retries are safe:** endpoints that create things take an `idempotencyKey`.
 
+## Hosting the web app on Vercel (optional)
+
+Only the React app moves to Vercel; sign-in, Firestore, the rules and Cloud Functions stay on Firebase.
+(The project brief's final setup is Firebase Hosting, Phase 25; Vercel is handy for sharing previews.)
+
+1. Import the GitHub repo in Vercel. `vercel.json` sets the build (`npm run build:web`: type-checks and
+   builds just the web app, since Vercel doesn't install `functions/`), the `dist` output, and the rewrite
+   that makes links like `/customer/bills` work on refresh.
+2. In Vercel → Settings → Environment Variables, add every `VITE_FIREBASE_…` value from `.env.local`.
+   Don't add `VITE_USE_EMULATORS`.
+3. Allow the Vercel address to call the API: in `functions/.env` set
+   `ALLOWED_ORIGINS=https://<your-project>.vercel.app` (comma-separate several, exact addresses), then
+   `firebase deploy --only functions`. Without this, billing, payments and role changes fail in the browser.
+4. In Firebase console → Authentication → Settings → Authorized domains, add the Vercel domain.
+
+**Testing CORS:** the Functions emulator allows every origin, so check allowed websites against the deployed
+API (or with the unit tests in `tests/functions/api.test.ts`), not the emulator.
+
 ## Scripts
 
 | Command                            | What it does                                                           |
 | ---------------------------------- | ---------------------------------------------------------------------- |
 | `npm run dev`                      | Start the dev server                                                   |
+| `npm run build:web`                | Type-check and build only the web app (used by Vercel)                 |
 | `npm run build`                    | Type-check and build to `dist/`                                        |
 | `npm run preview`                  | Serve the production build locally                                     |
 | `npm test`                         | Unit and component tests (Vitest)                                      |

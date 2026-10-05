@@ -20,6 +20,7 @@ import { payment } from './routes/payment'
 import { assignTicket, updateTicketStatus } from './routes/tickets'
 import { setUserRole } from './routes/setUserRole'
 import { sendSuccess } from './shared/http'
+import { corsOrigins } from './shared/cors'
 import { createApiHandler, type Route } from './shared/router'
 
 export { onTicketWritten } from './triggers/onTicketWritten'
@@ -29,14 +30,6 @@ initializeApp()
 
 // Keep in sync with FUNCTIONS_REGION in src/services/firebase.ts
 setGlobalOptions({ region: 'us-central1', maxInstances: 10 })
-
-/** Browsers allowed to call the API directly (dev server and Firebase Hosting). */
-const CORS_ORIGINS = [
-  /^http:\/\/localhost(:\d+)?$/,
-  /^http:\/\/127\.0\.0\.1(:\d+)?$/,
-  /\.web\.app$/,
-  /\.firebaseapp\.com$/,
-]
 
 /** The REST API. Add new endpoints here (and to docs/api.md). */
 const routes: Record<string, Route> = {
@@ -78,7 +71,7 @@ const routes: Record<string, Route> = {
   },
 }
 
-export const api = onRequest({ cors: CORS_ORIGINS }, createApiHandler(routes))
+export const api = onRequest({ cors: corsOrigins() }, createApiHandler(routes))
 
 export const health = onRequest((_req, res) => {
   sendSuccess(res, 'AquaLink functions are running', { timestamp: new Date().toISOString() })

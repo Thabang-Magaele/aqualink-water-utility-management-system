@@ -194,3 +194,22 @@ describe('the REST ticket rules agree with what the ticket page offers', () => {
 it('the server and the app know the same service areas', () => {
   expect([...SERVER_AREAS]).toEqual([...AREAS])
 })
+
+import { corsOrigins, extraOrigins } from '../../functions/src/shared/cors'
+describe('CORS: which websites may call the API', () => {
+  it('reads exact https origins from ALLOWED_ORIGINS, ignoring junk and trailing slashes', () => {
+    expect(
+      extraOrigins(
+        ' https://aqualink.vercel.app/ , http://insecure.example, *.vercel.app, ,https://a-b.vercel.app',
+      ),
+    ).toEqual(['https://aqualink.vercel.app', 'https://a-b.vercel.app'])
+    expect(extraOrigins(undefined)).toEqual([])
+  })
+  it('always allows the dev server and Firebase Hosting', () => {
+    const allowed = (origin: string) =>
+      corsOrigins('').some((o) => (typeof o === 'string' ? o === origin : o.test(origin)))
+    expect(allowed('http://localhost:5173')).toBe(true)
+    expect(allowed('https://aqualink-85d07.web.app')).toBe(true)
+    expect(allowed('https://aqualink.vercel.app')).toBe(false)
+  })
+})
